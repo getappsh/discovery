@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, ManyToOne, Unique } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BaseEntity } from "./base.entity";
 import { DeliveryStatusEnum, ItemTypeEnum } from "./enums.entity";
 import { UploadVersionEntity } from "./upload-version.entity";
@@ -7,7 +7,7 @@ import { DeviceEntity } from "./device.entity";
 
 
 @Entity("delivery_status")
-@Unique('UQ_deviceID_catalogId', ['device', 'catalogId'])  
+// @Unique('device_id_component_unique_constraint', ['deviceId', 'component'])  
 export class DeliveryStatusEntity extends BaseEntity{
 
     @ManyToOne(() => DeviceEntity)

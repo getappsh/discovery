@@ -1,4 +1,4 @@
-import { MapEntity } from "@app/common/database/entities";
+import { DeviceEntity, MapEntity } from "@app/common/database/entities";
 import { ApiProperty } from "@nestjs/swagger";
 import { MapDto } from "./map.dto";
 import { DeviceDto } from "../../device/dto/device.dto";

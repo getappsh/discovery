@@ -1,7 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany, PrimaryColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, ManyToOne, PrimaryColumn, UpdateDateColumn } from "typeorm";
 import { UploadVersionEntity } from "./upload-version.entity";
+import { MapEntity } from "./map.entity";
 import { DevicesGroupEntity } from "./devices-group.entity";
-import { DeviceMapStateEntity } from "./device-map-state.entity";
 
 @Entity("device")
 export class DeviceEntity {
@@ -9,17 +9,11 @@ export class DeviceEntity {
   @PrimaryColumn({ name: 'ID' })
   ID: string;
 
-  @CreateDateColumn({name: 'create_date', type: "timestamptz"})
+  @CreateDateColumn()
   createdDate: Date;
 
-  @UpdateDateColumn({name: 'last_update_date', type: "timestamptz"})
+  @UpdateDateColumn()
   lastUpdatedDate: Date;
-  
-  @Column({name: 'last_connection_date', type: "timestamptz", nullable: true})
-  lastConnectionDate: Date;
-  
-  @Column({nullable: true})
-  name: string
 
   @Column({ name: 'MAC', nullable: true })
   MAC: string;
@@ -56,11 +50,25 @@ export class DeviceEntity {
   })
   components: UploadVersionEntity[];
 
-  @OneToMany(() => DeviceMapStateEntity, deviceMapState => deviceMapState.device, { cascade: true })
-  maps: DeviceMapStateEntity[];
+  @ManyToMany(() => MapEntity, mapEntity => mapEntity.devices, {
+    cascade: true
+  })
+  @JoinTable({
+    name: "device_map",
+    joinColumn: {
+      name: 'device_ID',
+      referencedColumnName: 'ID'
+    },
+    inverseJoinColumn: {
+      name: "map_catalog_id",
+      referencedColumnName: "catalogId"
+    },
 
+  })
+  maps: MapEntity[];
 
-  @ManyToOne(type => DevicesGroupEntity, { nullable: true })
+  
+  @ManyToOne(type => DevicesGroupEntity, {nullable: true})
   groups: DevicesGroupEntity
 
 }

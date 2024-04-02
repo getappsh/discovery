@@ -6,9 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build:app": "nest build",
-    "build:migration": "nest build --webpack --webpackPath webpack/typeorm-cli.config.js && nest build --webpack --webpackPath webpack/migrations.config.js",
-    "build": "npm run build:migration && npm run build:app",
+    "build": "nest build",
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
     "start:no-mig": "nest start",
     "start:dev:no-mig": "nest start --watch",
@@ -27,8 +25,9 @@
     "migration:generate": "typeorm-ts-node-esm -d libs/common/src/database/config/ormconfig.ts migration:generate libs/common/src/database/migration/%npm_config_name%",
     "migration:run": "typeorm-ts-node-esm -d libs/common/src/database/config/ormconfig.ts migration:run",
     "migration:revert": "typeorm-ts-node-esm -d libs/common/src/database/config/ormconfig.ts migration:revert",
-    "all:dev": "concurrently  --names \"API,UPLOAD,DISCOVERY,OFFERING,DELIVERY,PROJECT-MANAGEMENT,DEPLOY,GET-MAP\" \"npm -C ../api run start:dev:no-mig api\" \"npm -C ../upload run start:dev:no-mig upload\"  \"npm -C ../discovery run start:dev:no-mig discovery\"  \"npm -C ../offering run start:dev:no-mig offering\"  \"npm -C ../delivery run start:dev:no-mig delivery\"  \"npm -C ../project-management run start:dev:no-mig project-management\"  \"npm -C ../deploy run start:dev:no-mig deploy\" \"npm -C ../get-map run start:dev:no-mig get-map\"",
-    "build:all": "concurrently  --names \"API,UPLOAD,DISCOVERY,OFFERING,DELIVERY,PROJECT-MANAGEMENT,DEPLOY,GET-MAP\" \"npm run build\" \"npm run build upload\"  \"npm run build discovery\"  \"npm run build offering\"  \"npm run build delivery\"  \"npm run build project-management\"  \"npm run build deploy\"  \"npm run build get-map\""
+    "all:dev": "concurrently  --names \"API,UPLOAD,DISCOVERY,OFFERING,DELIVERY,PROJECT-MANAGEMENT,DEPLOY\" \"npm -C ../api run start:dev:no-mig api\" \"npm -C ../upload run start:dev:no-mig upload\"  \"npm -C ../discovery run start:dev:no-mig discovery\"  \"npm -C ../offering run start:dev:no-mig offering\"  \"npm -C ../delivery run start:dev:no-mig delivery\"  \"npm -C ../project-management run start:dev:no-mig project-management\"  \"npm -C ../deploy run start:dev:no-mig deploy\"",
+    "build:all": "concurrently  --names \"API,UPLOAD,DISCOVERY,OFFERING,DELIVERY,PROJECT-MANAGEMENT,DEPLOY\" \"npm run build\" \"npm run build upload\"  \"npm run build discovery\"  \"npm run build offering\"  \"npm run build delivery\"  \"npm run build project-management\"  \"npm run build deploy\""
+
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.296.0",
@@ -51,12 +50,8 @@
     "dockerode": "^3.3.5",
     "dotenv": "^16.0.3",
     "kafkajs": "^2.2.3",
-    "nanoid": "^3.3.7",
     "nest-keycloak-connect": "^1.9.1",
-    "nestjs-cls": "^4.2.1",
-    "nestjs-pino": "^4.0.0",
     "pg": "^8.9.0",
-    "pino-http": "^9.0.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
     "typeorm": "^0.3.17",
@@ -78,16 +73,13 @@
     "eslint-plugin-prettier": "^4.2.1",
     "jest": "29.3.1",
     "prettier": "^2.8.4",
-    "shebang-loader": "^0.0.1",
     "source-map-support": "^0.5.20",
     "supertest": "^6.3.3",
     "ts-jest": "29.0.3",
     "ts-loader": "^9.4.2",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "4.1.1",
-    "typescript": "^4.7.4",
-    "webpack-ignore-dynamic-require": "^1.0.0",
-    "webpack-merge": "^5.10.0"
+    "typescript": "^4.7.4"
   },
   "jest": {
     "moduleFileExtensions": [

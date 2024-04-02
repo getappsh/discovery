@@ -1,26 +1,29 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Repository } from 'typeorm';
 import { DeviceEntity, DiscoveryType, MapEntity, UploadVersionEntity } from '@app/common/database/entities';
 import { DiscoveryMessageDto } from '@app/common/dto/discovery';
 import { OfferingTopics } from '@app/common/microservice-client/topics';
-import { MTlsStatusDto } from '@app/common/dto/device';
+import { DeviceRegisterDto, DeviceContentResDto, MTlsStatusDto } from '@app/common/dto/device';
 import { ComponentDto } from '@app/common/dto/discovery';
+import { MapDto } from '@app/common/dto/map';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
+import { MapDevicesDto } from '@app/common/dto/map/dto/all-maps.dto';
+import { DeviceDto } from '@app/common/dto/device/dto/device.dto';
 
 @Injectable()
 export class DiscoveryService implements OnModuleInit {
   private readonly logger = new Logger(DiscoveryService.name);
 
   constructor(
+
     @Inject(MicroserviceName.MICRO_DISCOVERY_SERVICE) private readonly discoveryMicroClient: MicroserviceClient,
     @InjectRepository(DiscoveryMessageEntity) private readonly discoveryMessageRepo: Repository<DiscoveryMessageEntity>,
     @InjectRepository(UploadVersionEntity) private readonly uploadVersionRepo: Repository<UploadVersionEntity>,
     @InjectRepository(DeviceEntity) private readonly deviceRepo: Repository<DeviceEntity>,
-    @InjectRepository(MapEntity) private readonly mapRepo: Repository<MapEntity>
-  ) {
+    @InjectRepository(MapEntity) private readonly mapRepo: Repository<MapEntity>) {
   }
 
   async discoveryMessage(discovery: DiscoveryMessageDto) {
@@ -59,6 +62,87 @@ export class DiscoveryService implements OnModuleInit {
 
   checkUpdates(discoveryMessage: DiscoveryMessageDto) {
     return this.discoveryMicroClient.send(OfferingTopics.CHECK_UPDATES, discoveryMessage)
+  }
+
+  async getRegisteredDevices(): Promise<DeviceDto[]> {
+    this.logger.debug(`Get all registered devices`);
+
+    const devices = await this.deviceRepo.find()
+
+    const devicesExtraData = await Promise.all(devices.map(async (device) => {
+      const discoveryMes = await this.discoveryMessageRepo.findOne({
+        where: { device: { ID: device.ID } },
+        // relations: {device: true},
+        order: { lastUpdatedDate: "DESC" },
+      })
+      /***  if @discoveryMes is @undefined it can by a fake device like TNG ***/
+      return discoveryMes ? DeviceDto.fromDeviceEntity({ ...device, ...discoveryMes?.situationalDevice }) : null
+
+    }))
+    return devicesExtraData
+  }
+
+  async deviceInstalled(deviceId: string): Promise<DeviceContentResDto> {
+    this.logger.debug(`get software and map installed on device: ${deviceId}`)
+    let deviceContent = new DeviceContentResDto()
+
+    let device = await this.deviceRepo.findOne({ where: { ID: deviceId }, relations: { components: true, maps: true } });
+    if (!device) {
+      throw new BadRequestException('Device not found');
+    }
+    deviceContent.components = device.components.map(ComponentDto.fromUploadVersionEntity);
+    deviceContent.maps = device.maps.map(MapDto.fromMapEntity);
+
+    return deviceContent
+  }
+
+  async getRequestedMaps(): Promise<MapDto[]> {
+    this.logger.debug('get all requested maps with devices');
+
+    let allMapEntity = await this.mapRepo.find({
+      order: { createDateTime: "DESC" },
+      take: 100
+    })
+    // let allMapEntity = await this.mapRepo.createQueryBuilder("map")
+    //   .innerJoin("map.devices", "device")
+    //   .getMany()
+
+    let allMap = allMapEntity.map(entity => MapDto.fromMapEntity(entity))
+
+    return allMap
+
+  }
+
+  async mapById(catalogId: string): Promise<MapDevicesDto> {
+    this.logger.debug(`get map with catalog id ${catalogId} with its devices`);
+
+    let mapEntity = await this.mapRepo.findOne({ where: { catalogId }, relations: { devices: true } })
+    let mepDeviceEntity = await Promise.all(mapEntity.devices.map(async (device) => {
+      const discoveryMes = await this.discoveryMessageRepo.findOne({
+        where: { device: { ID: device.ID } },
+        relations: { device: true },
+        order: { lastUpdatedDate: "DESC" },
+      })
+      return DeviceDto.fromDeviceEntity({ ...device, ...discoveryMes.situationalDevice })
+
+    }))
+    return MapDevicesDto.fromMapEntity(mapEntity, mepDeviceEntity)
+  }
+
+
+  registerSoftware(data: DeviceRegisterDto) {
+    this.logger.log(`register data: ${data}`);
+    // TODO
+    return ''
+  }
+  // TODO write tests
+  saveMapData(mapData: { [key: string]: any }) {
+    this.logger.log(`save map data reqId: ${mapData?.importRequestId}`);
+    let map = this.mapRepo.create(mapData);
+    map.catalogId = mapData?.importRequestId;
+
+    this.logger.log(`map entity to ${map}`)
+    this.mapRepo.save(map);
   }
 
   async imPushDiscoveryDevices(devicesDiscovery: DeviceDiscoverDto[]): Promise<void> {
@@ -145,6 +229,7 @@ export class DiscoveryService implements OnModuleInit {
     dm.discoveryType = DiscoveryType.MTLS
     this.discoveryMessageRepo.save(dm);
   }
+
 
   async onModuleInit() {
     this.discoveryMicroClient.subscribeToResponseOf([OfferingTopics.CHECK_UPDATES]);

@@ -1,27 +1,49 @@
-import { DeviceEntity, DiscoveryMessageEntity } from "@app/common/database/entities";
+import { DeviceEntity } from "@app/common/database/entities";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty } from "class-validator";
-import { DeviceDto } from "./device.dto";
-import { MapStateDto } from "../../map/dto/map-state.dto";
+import { IsNotEmpty, IsNumber, IsString, Max, Min } from "class-validator";
 
-export class DeviceMapDto extends DeviceDto {
+export class DeviceMapDto {
 
-  @ApiProperty({ isArray: true, type: MapStateDto })
+  @ApiProperty({required: false})
+  @IsString()
   @IsNotEmpty()
-  maps: MapStateDto[];
+  id: string;
 
-  static fromDeviceMapEntity(dme: DeviceEntity, discoveryE: DiscoveryMessageEntity): DeviceMapDto {
-    if(!dme.maps){
-      throw new Error("device entity must have a maps property")
-    }
+  @ApiProperty({required: false})
+  @IsString()
+  zadikNumber: string
 
-    let device = super.fromDeviceEntity(dme, discoveryE) as DeviceMapDto
-    device.maps = dme.maps.map(map => MapStateDto.fromMapStateEntity(map))
 
+  @ApiProperty({required: false})
+  @IsString()
+  hardware: string
+
+  @ApiProperty({required: false})
+  @IsNotEmpty()
+  formation: string
+
+  @ApiProperty({required: false})
+  @IsString()
+  availableStorage: string
+
+  @ApiProperty({required: false})
+  @Min(0)
+  @Max(100)
+  power: number;
+
+  @ApiProperty({required: false})
+  @IsNumber()
+  bandwidth: number;
+
+  static fromDeviceEntity(de: DeviceEntity): DeviceMapDto{
+    let device = new DeviceMapDto()
+    device.id = de.ID;
+    device.availableStorage = de.availableStorage;
+// TODO
     return device
   }
 
-  toString() {
+  toString(){
     return JSON.stringify(this);
   }
 }

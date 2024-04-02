@@ -1,6 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Type } from "class-transformer";
-import {IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from "class-validator"
+import {IsNotEmpty, IsString } from "class-validator"
 
 
 export class DiscoveryMapDto {
@@ -89,14 +88,6 @@ export class DiscoveryMapDto {
   @IsString()
   @IsNotEmpty()
   resolution: string;
-
-  @ApiProperty({required: false, type: [String]})
-  @IsArray()
-  @IsString({each: true})
-  @IsNotEmpty({each: true})
-  @IsOptional()
-  @Type(() => String)
-  inventory: string[]
 
   toString(){
     return JSON.stringify(this);

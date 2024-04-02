@@ -44,10 +44,6 @@ export class S3Service {
       Key: fileUrl
     })
 
-    if(fileUrl.includes("cache-public")){
-        return `https://${this.bucketName}.s3.amazonaws.com/${fileUrl}`
-    }
-
     const signedUrl = await getSignedUrl(this.s3, command, {
       expiresIn: this.configService.get('DOWNLOAD_URL_EXPIRE'),
     }) 

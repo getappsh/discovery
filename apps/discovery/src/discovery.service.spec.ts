@@ -9,6 +9,9 @@ import { discoveryMessageDtoStub } from '@app/common/dto/discovery';
 import { ConfigModule } from '@nestjs/config';
 import { OfferingTopics } from '@app/common/microservice-client/topics';
 import { DeviceEntity, MapEntity, UploadVersionEntity } from '@app/common/database/entities';
+import { physicalDiscoveryDtoStub } from '@app/common/dto/discovery';
+import { ComponentDto } from '@app/common/dto/discovery';
+import { MapDto } from '@app/common/dto/map';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 
 const mockDiscoveryMicroClient = {
@@ -26,11 +29,12 @@ describe('DiscoveryService', () => {
   let discoveryMessageRepo: Repository<DiscoveryMessageEntity>;
   let uploadVersionRepo: Repository<UploadVersionEntity>;
   let deviceRepo: Repository<DeviceEntity>;
+  let mapRepo: Repository<MapEntity>;
   let microserviceClient: MicroserviceClient;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true })],
+      imports: [ConfigModule.forRoot({isGlobal: true})],
       providers: [
         DiscoveryService,
         {
@@ -64,6 +68,7 @@ describe('DiscoveryService', () => {
     discoveryMessageRepo = module.get<Repository<DiscoveryMessageEntity>>(getRepositoryToken(DiscoveryMessageEntity));
     uploadVersionRepo = module.get<Repository<UploadVersionEntity>>(getRepositoryToken(UploadVersionEntity));
     deviceRepo = module.get<Repository<DeviceEntity>>(getRepositoryToken(DeviceEntity));
+    mapRepo = module.get<Repository<MapEntity>>(getRepositoryToken(MapEntity));
     microserviceClient = module.get<MicroserviceClient>(MicroserviceName.MICRO_DISCOVERY_SERVICE);
 
     jest.clearAllMocks()
@@ -95,6 +100,19 @@ describe('DiscoveryService', () => {
       expect(microserviceClient.send).toHaveBeenCalledWith(OfferingTopics.CHECK_UPDATES, discovery);
     });
   });
+
+  describe('deviceInstalled', () => {
+    it('should return the installed components and maps on a device', async () => {
+      const deviceId = physicalDiscoveryDtoStub().ID;
+
+      const result = await discoveryService.deviceInstalled(deviceId);
+      expect(result.components.every(item => item instanceof ComponentDto)).toBe(true);
+      expect(result.maps.every(item => item instanceof MapDto)).toBe(true);
+      expect(deviceRepo.findOne).toHaveBeenCalledWith({ where: { ID: deviceId }, relations: {components: true, maps: true}});
+      expect(deviceRepo.findOne).toHaveReturnedWith(expect.any(Promise));
+    });
+  });
+
 
   describe('registerSoftware', () => {
     it('should log the register data and return an empty string', () => {

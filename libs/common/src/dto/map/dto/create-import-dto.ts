@@ -1,44 +1,37 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
+import { IsInt, IsNotEmpty, IsNumber, IsString, Max, Min, ValidateNested } from "class-validator";
 
 export class MapProperties {
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({required: false})
   @IsString()
-  name: string;
-  
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
+  @IsNotEmpty()
   productName: string;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({required: false})
   @IsString()
+  @IsNotEmpty()
   productId: string;
 
-  @ApiProperty({ type: Number, minimum: 0, maximum: 18, required: false })
-  @IsOptional()
+  @ApiProperty({type: Number, minimum: 0, maximum: 18})
   @IsInt()
   @Min(0)
   @Max(20)
   zoomLevel: number;
 
-  @ApiProperty({ required: true })
+  @ApiProperty({required: false})
   @IsString()
   @IsNotEmpty()
   boundingBox: string;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({required: false})
   @IsNumber()
   targetResolution: number;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({required: false})
   @IsNumber()
+  @IsNotEmpty()
   lastUpdateAfter: number;
 
   toString() {
@@ -49,12 +42,12 @@ export class MapProperties {
 
 export class CreateImportDto {
 
-  @ApiProperty({ required: false })
+  @ApiProperty({required: false})
   @IsString()
   @IsNotEmpty()
   deviceId: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({required: false})
   @IsNotEmpty()
   @ValidateNested()
   @Type(() => MapProperties)

@@ -38,7 +38,7 @@ export class DevicesGroupDto {
     devicesGroupDto.id = dge.id;
     devicesGroupDto.name = dge.name;
     devicesGroupDto.description = dge?.description;
-    // devicesGroupDto.devices = dge?.devices?.map(d => DeviceMapDto.fromDeviceEntity(d))
+    devicesGroupDto.devices = dge?.devices?.map(d => DeviceMapDto.fromDeviceEntity(d))
     devicesGroupDto.groups = dge?.children?.map(childe => DevicesGroupDto.fromDevicesGroupEntity(childe))
 
     return devicesGroupDto

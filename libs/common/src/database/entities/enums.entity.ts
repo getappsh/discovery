@@ -1,11 +1,11 @@
 export enum OS {
-    ANDROID = 'android',
+    ANDROID ='android',
     WINDOWS = 'windows',
     LINUX = 'linux',
 }
 
 export enum Components {
-    ANDROID = 'android',
+    ANDROID ='android',
     WINDOWS = 'windows',
     LINUX = 'linux',
 }
@@ -37,14 +37,14 @@ export enum UploadStatus {
     STARTED = 'started',
     DOWNLOADING_FROM_URL = 'downloading-from-url',
     FAIL_TO_DOWNLOAD = 'fail-to-download',
-    UPLOADING_TO_S3 = 'uploading-to-s3',
+    UPLOADING_TO_S3 ='uploading-to-s3',
     FAIL_TO_UPLOAD = 'fail-to-upload',
     IN_PROGRESS = 'in-progress',
     READY = 'ready',
     ERROR = 'error'
 }
 
-export enum DeliveryStatusEnum {
+export enum DeliveryStatusEnum{
     START = 'Start',
     DONE = 'Done',
     ERROR = 'Error',
@@ -56,14 +56,7 @@ export enum DeliveryStatusEnum {
 
 }
 
-export enum PrepareStatusEnum {
-    START = "start",
-    IN_PROGRESS = "inProgress",
-    DONE = "done",
-    ERROR = "error",
-  }
-  
-export enum DeployStatusEnum {
+export enum DeployStatusEnum{
     START = 'Start',
     DONE = 'Done',
     INSTALLING = "Installing",
@@ -90,24 +83,6 @@ export enum MapImportStatusEnum {
     PENDING = 'Pending',
     EXPIRED = 'Expired',
     ARCHIVED = 'Archived',
-}
-
-export enum LibotExportStatusEnum {
-    PENDING = 'PENDING',
-    IN_PROGRESS = "IN_PROGRESS",
-    COMPLETED = "COMPLETED",
-    ABORTED = "ABORTED",
-    PAUSED = "PAUSED",
-    FAILED = "FAILED",
-    EXPIRED = "EXPIRED",
-    ARCHIVED = "ARCHIVED",
-}
-
-export enum DeviceMapStateEnum {
-    IMPORT = "import",
-    DELIVERY = "delivery",
-    INSTALLED = "installed",
-    UNINSTALLED = "uninstalled"
-}
+  }
 
 

@@ -1,7 +1,6 @@
 
-import { PrepareDeliveryReqDto } from "@app/common/dto/delivery";
+import { PrepareDeliveryReqDto, PrepareStatusEnum } from "@app/common/dto/delivery";
 import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import { PrepareStatusEnum } from "./enums.entity";
 
 @Entity("delivery")
 export class DeliveryEntity{
@@ -23,14 +22,10 @@ export class DeliveryEntity{
   @Column({name: "path", nullable: true})
   path: string;
 
-
-  @Column({name: "progress", type: "int", default: 0})
-  progress: number
-
-  @CreateDateColumn({type: 'timestamptz'})
+  @CreateDateColumn()
   createdDate: Date;
 
-  @UpdateDateColumn({type: 'timestamptz'})
+  @UpdateDateColumn()
   lastUpdatedDate: Date;
 
 

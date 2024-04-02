@@ -1,4 +1,4 @@
-import { DeliveryEntity } from "@app/common/database/entities/delivery.entity";
+import { DeliveryEntity } from "@app/common/database-tng/entities/delivery.entity";
 import { deviceEntityStub, uploadVersionEntityStub } from "@app/common/database/test/support/stubs";
 import { PrepareStatusEnum } from "@app/common/dto/delivery";
 

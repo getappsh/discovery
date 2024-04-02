@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { join } from 'path';
 import { readFileSync } from 'fs'
-import { DeliveryEntity } from '../../database/entities/delivery.entity';
+import { DeliveryEntity } from '../entities/delivery.entity';
 
 const region = process.env.REGION ? `_${process.env.REGION}` : '';
 
@@ -19,7 +19,7 @@ const ormConfig = new DataSource({
   ],
   migrations: [join(__dirname, '../migration/*.ts')],
   logging: false,
-  synchronize: false,
+  synchronize: true,
   migrationsTableName: "history",
 });
 

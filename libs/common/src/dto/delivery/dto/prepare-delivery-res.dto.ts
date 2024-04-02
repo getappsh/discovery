@@ -1,6 +1,11 @@
-import { PrepareStatusEnum } from "@app/common/database/entities";
 import { ApiProperty } from "@nestjs/swagger";
 
+export enum PrepareStatusEnum {
+  START = "start",
+  IN_PROGRESS = "inProgress",
+  DONE = "done",
+  ERROR = "error",
+}
 
 export class PrepareDeliveryResDto{
   @ApiProperty()
