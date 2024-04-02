@@ -1,7 +1,7 @@
 import { CreateDevicesGroupDto, EditDevicesGroupDto, SetDevicesInGroupDto } from "@app/common/dto/devices-group";
 import { DevicesGroupTopics } from "@app/common/microservice-client/topics";
 import { Controller } from "@nestjs/common";
-import { MessagePattern } from "@nestjs/microservices";
+import { MessagePattern, Payload } from "@nestjs/microservices";
 import { GroupService } from "./group.service";
 
 @Controller()
@@ -24,7 +24,7 @@ export class GroupController {
   }
 
   @MessagePattern(DevicesGroupTopics.GET_GROUP_DEVICES)
-  getGroupDevices(groupId: string){
+  getGroupDevices(@Payload("stringValue") groupId: string){
     return this.groupService.getGroupDevices(groupId);
   }
 

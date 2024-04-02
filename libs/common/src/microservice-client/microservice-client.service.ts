@@ -51,11 +51,10 @@ export class MicroserviceClient {
             const validationObject = plainToInstance(ClassConstructor, res);
             const errors = await validate(validationObject);
             if (errors.length > 0) {
-                this.logger.error(`Validation error for response of topic: ${topic}`);
-                this.logger.verbose(`Response: ${JSON.stringify(res)}`)
+                this.logger.log(`Validation error for response of topic: ${topic}`);
                 const constraints = errors.map((error) => Object.values(error.constraints ?? {})).flat();
-                this.logger.verbose(`error list: ${errors}`);
-                // throw new InternalServerErrorException(constraints);
+                this.logger.debug(`error list: ${errors}`);
+                throw new InternalServerErrorException(constraints);
             }
             return res;
         })

@@ -58,8 +58,6 @@ RUN npm run build
 
 
 FROM cts as deploy
-ARG discovery_version_tag
-ENV discovery_version_tag=$discovery_version_tag
 
 ENV NODE_ENV=production
 

@@ -1,80 +1,52 @@
 import { ProductEntity } from "@app/common/database/entities";
 import { MCRasterRecordDto } from "@app/common/dto/libot/dto/recordsRes.dto";
-import { FootprintValidator } from "@app/common/validators/footprint.validator";
 import { ApiProperty } from "@nestjs/swagger";
-import { Type } from "class-transformer";
-import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString, Validate } from "class-validator";
+import { IsNotEmpty, IsString } from "class-validator";
 
 export class MapProductResDto {
 
-  @IsString()
-  @IsNotEmpty()
   @ApiProperty()
   id: string
 
-  @IsString()
-  @IsNotEmpty()
   @ApiProperty()
   productId: string;
 
-  @IsString()
-  @IsOptional()
   @ApiProperty({ required: false })
   productName: string;
 
   @ApiProperty({ required: false })
-  productVersion: number;
+  productVersion: string;
 
-  @IsString()
-  @IsOptional()
   @ApiProperty({ required: false })
   productType: string;
 
   @ApiProperty({ required: false })
-  productSubType: number;
+  productSubType: string;
 
-  @IsString()
-  @IsOptional()
   @ApiProperty({ required: false })
   description: string;
 
   @ApiProperty({ required: false })
-  @IsOptional()    
-  @Type(() => Date)
-  @IsDate()
   imagingTimeBeginUTC: Date;
 
   @ApiProperty({ required: false })
-  @IsOptional()    
-  @Type(() => Date)
-  @IsDate()
   imagingTimeEndUTC: Date;
 
   @ApiProperty({ required: false })
-  @IsNumber()
-  @IsOptional()
   maxResolutionDeg: number
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
-  @Validate(FootprintValidator)
   footprint: string;
 
   @ApiProperty({ required: false })
-  @IsString()
-  @IsOptional()
   transparency: string
 
-  @IsString()
-  @IsOptional()
   @ApiProperty({ required: false })
   region: string;
 
   @ApiProperty({ required: false })
-  @IsOptional()    
-  @Type(() => Date)
-  @IsDate()
   ingestionDate: Date;
 
   toString() {
@@ -82,14 +54,14 @@ export class MapProductResDto {
   }
 
 
-  static fromRecordsRes(records: MCRasterRecordDto): MapProductResDto {    
+  static fromRecordsRes(records: MCRasterRecordDto): MapProductResDto {
     const product = new MapProductResDto()
     product.id = records["mc:id"]
     product.productId = records["mc:productName"]
     product.productName = records["mc:productName"]
-    product.productVersion = Number(records["mc:productVersion"])
+    product.productVersion = records["mc:productVersion"]
     product.productType = records["mc:productType"]
-    product.productSubType = Number(records["mc:productSubType"]);
+    product.productSubType = records["mc:productSubType"];
     product.description = records["mc:description"];
     product.imagingTimeBeginUTC = new Date(records["mc:imagingTimeBeginUTC"]);
     product.imagingTimeEndUTC = new Date(records["mc:imagingTimeEndUTC"]);

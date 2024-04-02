@@ -1,8 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsArray, IsEnum, ValidateNested } from "class-validator";
+import { IsEnum } from "class-validator";
 import { MapProductResDto } from "../../map/dto/map-product-res.dto";
 import { ErrorDto } from "../../error";
-import { Type } from "class-transformer";
 
 
 
@@ -13,9 +12,6 @@ export enum MapOfferingStatus {
 
 export class OfferingMapResDto {
   @ApiProperty({required: false, type: MapProductResDto, isArray: true})
-  @IsArray()
-  @ValidateNested({each: true})
-  @Type(() => MapProductResDto)
   products: MapProductResDto[];
 
   @ApiProperty({enum: MapOfferingStatus})

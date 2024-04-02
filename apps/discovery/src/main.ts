@@ -14,7 +14,7 @@ async function bootstrap() {
         name: MicroserviceName.DISCOVERY_SERVICE
       }, 
       MSType[process.env.MICRO_SERVICE_TYPE]),
-      bufferLogs: true,
+      bufferLogs: true
     }
   );
   app.useLogger(app.get(GET_APP_LOGGER))

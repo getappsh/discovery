@@ -2,8 +2,7 @@ import { LoggerModule } from "nestjs-pino";
 import { LoggerModuleOptions } from "./logger.interfaces";
 import { ConsoleLogger, DynamicModule, LogLevel, Provider } from "@nestjs/common";
 import { APP_INTERCEPTOR } from "@nestjs/core";
-import { AsyncContextMsInterceptor } from "@app/common/logger/interceptors/async-context-ms.interceptor";
-import { LoggingInterceptor } from "@app/common/logger/interceptors/logging.interceptor";
+import { AsyncContextMsInterceptor } from "@app/common/logger/async-context-ms.interceptor";
 import { GET_APP_LOGGER } from "./logger.module";
 import { LoggerService } from "./logger.service";
 import { ClsModule } from "nestjs-cls";
@@ -64,16 +63,13 @@ export function createProviders(options: LoggerModuleOptions): Provider[]{
     )
   }
 
-  providers.push({
-    provide: APP_INTERCEPTOR,
-    useClass: LoggingInterceptor,
-  })
-
   if(options.jsonLogger){
-    providers.push({
+    providers.push(
+      {
       provide: GET_APP_LOGGER,
       useClass: LoggerService
-      })
+      }
+    )
   }else{
     const logLevels: LogLevel[] = []
     switch (process.env.LOG_LEVEL) {
