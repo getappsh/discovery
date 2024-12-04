@@ -21,7 +21,7 @@ export class MapEntity {
   @CreateDateColumn({ name: 'create_date', type: 'timestamptz' })
   createDateTime: Date;
 
-  @UpdateDateColumn({ name: 'last_update_date', type: 'timestamptz' })
+  @UpdateDateColumn({name: 'last_update_date', type: 'timestamptz'})
   lastUpdatedDate: Date;
 
   @ManyToOne(() => ProductEntity)
@@ -70,7 +70,7 @@ export class MapEntity {
   exportEnd: Date
 
   @Column({ name: 'expired_date', type: 'timestamptz', nullable: true })
-  expiredDate: Date
+  expiredDate : Date
 
   @Column({ name: 'job_id', type: "bigint", nullable: true })
   jobId: number

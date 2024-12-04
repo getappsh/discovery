@@ -9,7 +9,6 @@ import { DeviceDto } from '@app/common/dto/device/dto/device.dto';
 import { DeviceService } from './device.service';
 import { RegisterMapDto } from '@app/common/dto/device/dto/register-map.dto';
 import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-device-updates-dto';
-import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 
 @Controller()
 export class DeviceController {
@@ -23,11 +22,6 @@ export class DeviceController {
   @MessagePattern(DeviceTopics.All_DEVICES)
   getRegisteredDevices(): Promise<DeviceDto[]>{
     return this.deviceService.getRegisteredDevices()
-  }
-  
-  @MessagePattern(DeviceTopics.DEVICES_PUT)
-  putDeviceProperties(@Payload() p: DevicePutDto): Promise<DevicePutDto>{
-    return this.deviceService.putDeviceProperties(p)
   }
   
   @MessagePattern(DeviceTopics.DEVICE_MAPS)
@@ -58,6 +52,12 @@ export class DeviceController {
   @EventPattern(DeviceTopicsEmit.REGISTER_MAP_INVENTORY)
   registerMapInventoryToDevice(inventory: InventoryDeviceUpdatesDto){
     this.deviceService.registerMapInventoryToDevice(inventory);
+  }
+
+  
+  @MessagePattern(DeviceTopics.GET_DEVICE_IMEI)
+  getDeviceIMEI(@Payload("stringValue") serialNumber){
+    return this.deviceService.getDeviceIMEI(serialNumber)
   }
 
   @MessagePattern(DeviceTopics.CHECK_HEALTH)

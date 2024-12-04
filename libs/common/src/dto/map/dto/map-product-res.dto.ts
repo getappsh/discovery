@@ -1,52 +1,80 @@
 import { ProductEntity } from "@app/common/database/entities";
-import { MCRasterRecordDto } from "@app/common/dto/libot/dto/recordsRes.dto";
+import { FootprintValidator } from "@app/common/validators/footprint.validator";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString } from "class-validator";
+import { Type } from "class-transformer";
+import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString, Validate } from "class-validator";
+import { MCRasterRecordDto } from "../../libot/dto/recordsRes.dto";
 
 export class MapProductResDto {
 
+  @IsString()
+  @IsNotEmpty()
   @ApiProperty()
   id: string
 
+  @IsString()
+  @IsNotEmpty()
   @ApiProperty()
   productId: string;
 
+  @IsString()
+  @IsOptional()
   @ApiProperty({ required: false })
   productName: string;
 
   @ApiProperty({ required: false })
   productVersion: string;
 
+  @IsString()
+  @IsOptional()
   @ApiProperty({ required: false })
   productType: string;
 
   @ApiProperty({ required: false })
   productSubType: string;
 
+  @IsString()
+  @IsOptional()
   @ApiProperty({ required: false })
   description: string;
 
   @ApiProperty({ required: false })
+  @IsOptional()    
+  @Type(() => Date)
+  @IsDate()
   imagingTimeBeginUTC: Date;
 
   @ApiProperty({ required: false })
+  @IsOptional()    
+  @Type(() => Date)
+  @IsDate()
   imagingTimeEndUTC: Date;
 
   @ApiProperty({ required: false })
+  @IsNumber()
+  @IsOptional()
   maxResolutionDeg: number
 
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
+  @Validate(FootprintValidator)
   footprint: string;
 
   @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
   transparency: string
 
+  @IsString()
+  @IsOptional()
   @ApiProperty({ required: false })
   region: string;
 
   @ApiProperty({ required: false })
+  @IsOptional()    
+  @Type(() => Date)
+  @IsDate()
   ingestionDate: Date;
 
   toString() {

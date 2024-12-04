@@ -110,4 +110,10 @@ export enum DeviceMapStateEnum {
     UNINSTALLED = "uninstalled"
 }
 
+export enum TargetStoragePolicy {
+    SD_ONLY = "SDOnly",
+    FLASH_THEN_SD = "FlashThenSD",
+    SD_THEN_FLASH = "SDThenFlash",
+    FLASH_ONLY = "FlashOnly"
+}
 

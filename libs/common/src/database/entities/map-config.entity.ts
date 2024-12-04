@@ -1,5 +1,6 @@
 import { Column, Entity } from "typeorm";
 import { BaseEntity } from "./base.entity";
+import { TargetStoragePolicy } from "./enums.entity";
 
 @Entity("map_configs")
 export class MapConfigEntity extends BaseEntity {
@@ -45,6 +46,33 @@ export class MapConfigEntity extends BaseEntity {
 
   @Column({ name: "matomo_site_id", nullable: true })
   matomoSiteId: string
+
+  @Column({ name: "sd_storage_path", nullable: true })
+  sdStoragePath: string
+
+  @Column({ name: "flash_storage_path", nullable: true })
+  flashStoragePath: string
+  
+  @Column({
+    name: 'target_storage_policy',
+    type: "enum",
+    enum: TargetStoragePolicy,
+    default: TargetStoragePolicy.SD_ONLY
+  })
+  targetStoragePolicy: TargetStoragePolicy
+
+
+  @Column({ name: "sd_inventory_max_size_mb", nullable: true })
+  sdInventoryMaxSizeMB: number
+
+  @Column({ name: "flash_inventory_max_size_mb", nullable: true })
+  flashInventoryMaxSizeMB: number
+
+  @Column({ name: "ortophoto_map_path", nullable: true })
+  ortophotoMapPath: string
+
+  @Column({ name: "control_map_path", nullable: true })
+  controlMapPath: string
 
   toString() {
     return JSON.stringify(this)

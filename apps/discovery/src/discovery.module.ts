@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
-import { DeviceEntity, DeviceMapStateEntity, DevicesGroupEntity, MapEntity, UploadVersionEntity } from '@app/common/database/entities';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, DevicesGroupEntity, MapEntity, UploadVersionEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -13,20 +13,30 @@ import { DeviceService } from './device/device.service';
 import { DeviceController } from './device/device.controller';
 import { DeviceClientRepoModule } from './modules/device-client-repo/device-client-repo.module';
 import { LoggerModule } from '@app/common/logger/logger.module';
+import { ApmModule } from '@app/common/apm/apm.module';
+import { BugReportController } from './bug-report/bug-report.controller';
+import { BugReportService } from './bug-report/bug-report.service';
+import { S3Service } from '@app/common/AWS/s3.service';
+import { MailModule } from '@app/common/mail/mail.module';
+import { HttpModule } from '@nestjs/axios';
+
 
 @Module({
   imports: [
     ConfigModule.forRoot({isGlobal: true}),
     LoggerModule.forRoot({httpCls: false, jsonLogger: process.env.LOGGER_FORMAT === 'JSON', name: "Discovery"}),
+    ApmModule,
     MicroserviceModule.register({
       name: MicroserviceName.MICRO_DISCOVERY_SERVICE,
       type: MicroserviceType.MICRO_DISCOVERY,
     }),
     DatabaseModule,
-    TypeOrmModule.forFeature([DiscoveryMessageEntity, UploadVersionEntity, DeviceEntity, MapEntity, DevicesGroupEntity, DeviceMapStateEntity]),
-    DeviceClientRepoModule 
+    TypeOrmModule.forFeature([DiscoveryMessageEntity, UploadVersionEntity, DeviceEntity, MapEntity, DevicesGroupEntity, DeviceMapStateEntity, BugReportEntity]),
+    DeviceClientRepoModule,
+    HttpModule,
+    MailModule
   ],
-  controllers: [DiscoveryController, GroupController, DeviceController],
-  providers: [DiscoveryService, GroupService, DeviceService],
+  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController],
+  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service],
 })
 export class DiscoveryModule {}

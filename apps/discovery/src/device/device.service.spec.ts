@@ -12,6 +12,7 @@ import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-c
 import { DeviceService } from './device.service';
 import { mockDeviceMapStateRepo } from '@app/common/database/test/support/__mocks__/device-map-state.repo.mock';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
+import { HttpModule, HttpService } from '@nestjs/axios';
 
 const mockDiscoveryMicroClient = {
   send: jest.fn().mockResolvedValue({}),
@@ -29,10 +30,10 @@ describe('DiscoveryService', () => {
   let uploadVersionRepo: Repository<UploadVersionEntity>;
   let deviceRepo: Repository<DeviceEntity>;
   let microserviceClient: MicroserviceClient;
-
+  
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true })],
+      imports: [ConfigModule.forRoot({ isGlobal: true }), HttpModule],
       providers: [
         DeviceService,
         DeviceRepoService,
@@ -63,7 +64,7 @@ describe('DiscoveryService', () => {
         {
           provide: MicroserviceName.MICRO_DISCOVERY_SERVICE,
           useValue: mockMicroserviceClient,
-        }
+        },
       ],
     }).compile();
 

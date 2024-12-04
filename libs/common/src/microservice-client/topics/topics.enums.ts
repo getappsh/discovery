@@ -90,7 +90,8 @@ export const DeviceTopics = {
     DEVICE_CONTENT: `getapp-device.content.installed${region}`,
     DISCOVERY_SOFTWARE: `getapp-device.discover.software.catalog${region}`,
     IM_PULL_DISCOVERY: `getapp-device.im.pull.discovery${region}`,
-    CHECK_HEALTH: `getapp-device.check-health${region}`
+    CHECK_HEALTH: `getapp-device.check-health${region}`,
+    GET_DEVICE_IMEI: `getapp-device.get-device-imei${region}`
 } as const
 
 export const DeviceTopicsEmit = {
@@ -108,4 +109,9 @@ export const DevicesGroupTopics = {
     GET_GROUPS: `getapp-device.group.get-all${region}`,
     GET_GROUP_DEVICES: `getapp-device.group.get-devices${region}`,
     SET_GROUP_DEVICES: `getapp-device.group.set-devices${region}`,
+} as const
+
+export const DeviceBugReportTopics = {
+    NEW_BUG_REPORT: `getapp-device.bug-report.new${region}`,
+    GET_BUG_REPORT: `getapp-device.bug-report.get${region}`,
 } as const

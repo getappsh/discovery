@@ -11,6 +11,7 @@ export const DISCOVERY = "discovery";
 export const PROJECT_MANAGEMENT = "projectManagement";
 export const DEVICE = "device";
 export const GET_MAP = "map";
+export const BUG_REPORT = "bug-report"
 
 
 // nested login paths

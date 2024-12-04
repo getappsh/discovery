@@ -40,8 +40,8 @@ export class MapDto {
 
   @ApiProperty({ required: false })
   isUpdate: boolean;
- 
-  @ApiProperty({required: false})
+
+  @ApiProperty({ required: false })
   product: MapProductResDto;
 
   static fromMapEntity(mapEntity: MapEntity) {

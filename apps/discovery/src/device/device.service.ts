@@ -3,14 +3,17 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity } from '@app/common/database/entities';
-import { DeviceRegisterDto, DeviceContentResDto, DeviceMapDto } from '@app/common/dto/device';
+import { DeviceRegisterDto, DeviceContentResDto, DeviceMapDto, DeviceIMEI } from '@app/common/dto/device';
 import { ComponentDto } from '@app/common/dto/discovery';
 import { CreateImportDto, CreateImportResDto, ImportStatusResDto, MapDto, MapProperties } from '@app/common/dto/map';
 import { MapDevicesDto } from '@app/common/dto/map/dto/all-maps.dto';
 import { DeviceDto } from '@app/common/dto/device/dto/device.dto';
 import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-device-updates-dto';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
-import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
+import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
+import { RpcException } from '@nestjs/microservices';
 
 @Injectable()
 export class DeviceService {
@@ -22,7 +25,9 @@ export class DeviceService {
     @InjectRepository(DeviceEntity) private readonly deviceRepo: Repository<DeviceEntity>,
     @InjectRepository(MapEntity) private readonly mapRepo: Repository<MapEntity>,
     @InjectRepository(DeviceMapStateEntity) private readonly deviceMapRepo: Repository<DeviceMapStateEntity>,
-    private deviceRepoS: DeviceRepoService
+    private deviceRepoS: DeviceRepoService,
+    private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
   ) {
   }
 
@@ -36,12 +41,6 @@ export class DeviceService {
     return this.deviceToDevicesDto(devices)
   }
   
-  async putDeviceProperties(p: DevicePutDto): Promise<DevicePutDto> {
-    this.logger.log(`Put props for device ${p.deviceId}`);
-    return await this.deviceRepoS.setDevice(p)
-  }
-
-
   // TODO write test
   async getDeviceMaps(deviceId: string): Promise<DeviceMapDto> {
     this.logger.debug(`get maps for device ${deviceId}`);
@@ -56,8 +55,8 @@ export class DeviceService {
       },
     })
     if (!deviceEntity) {
-      this.logger.error(`device ${deviceId} not exits`)
-      throw new BadRequestException("Device not exits")
+      this.logger.error(`device ${deviceId} not exists`)
+      throw new BadRequestException("Device not exists")
     }
 
     const discoveryMes = await this.discoveryMessageRepo.findOne({
@@ -212,8 +211,8 @@ export class DeviceService {
 
     let mapEntity = await this.mapRepo.findOne({ where: { catalogId }, relations: { devices: { device: true }, mapProduct: true } })
     if (!mapEntity) {
-      this.logger.error(`map of catalog id ${catalogId} not exits`)
-      throw new BadRequestException("Map not exits")
+      this.logger.error(`map of catalog id ${catalogId} not exists`)
+      throw new BadRequestException("Map not exists")
     }
 
     const devices = mapEntity.devices.map(device => device.device)
@@ -240,5 +239,46 @@ export class DeviceService {
     this.logger.log(`register data: ${data}`);
     // TODO
     return ''
+  }
+
+
+  async getDeviceIMEI(serialNumber: string){
+    this.logger.log(`Get device IMEI, serialNumber: ${serialNumber}`);
+   
+    const userName = this.configService.get<string>("AW_USERNAME");
+    const password = this.configService.get<string>("AW_PASSWORD");
+    const credentials = `${userName}:${password}`;
+    const encodedCredential = Buffer.from(credentials).toString('base64');
+
+    this.logger.verbose(`EncodedCredential: ${encodedCredential}`)
+
+    const awUrl = this.configService.get<string>("AW_URL");
+    const url = `${awUrl}/API/mdm/devices/?searchby=Serialnumber&id=${serialNumber}`;
+
+    try{
+      const response = await lastValueFrom(this.httpService.get(url, {
+        headers: {
+            'Content-Type': 'application/json',
+            'aw-tenant-code': this.configService.get("AW_TENANT"),
+            'Authorization': `Basic ${encodedCredential}`
+        }
+      }));
+
+      this.logger.verbose(JSON.stringify(response));
+      if (response.status === 200){
+        const imei = response?.data?.Imei;
+        this.logger.debug(`IMEI: ${imei}`)
+  
+        let deviceImei = new DeviceIMEI()
+        deviceImei.imei = imei;
+        return deviceImei;
+      }else{
+        throw new RpcException(`Failed to get device-imei, status: ${response?.status}, data: ${response.data}`)
+      }
+
+    }catch(e){
+      this.logger.error(e)
+      throw e
+    }    
   }
 }

@@ -1,6 +1,6 @@
-import { MapConfigEntity } from "@app/common/database/entities";
+import { MapConfigEntity, TargetStoragePolicy } from "@app/common/database/entities";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNumber, IsOptional, IsString } from "class-validator";
+import { IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class MapConfigDto {
 
@@ -74,6 +74,32 @@ export class MapConfigDto {
   @IsOptional()
   @IsString()
   matomoSiteId: string
+  
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  sdStoragePath: string
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  flashStoragePath: string
+  
+  @ApiProperty({enum: TargetStoragePolicy, required: false, default: TargetStoragePolicy.SD_ONLY})
+  @IsOptional()
+  @IsEnum(TargetStoragePolicy)
+  targetStoragePolicy: TargetStoragePolicy
+
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  sdInventoryMaxSizeMB: number
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  flashInventoryMaxSizeMB: number
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -82,6 +108,16 @@ export class MapConfigDto {
   @ApiProperty({ required: false })
   @IsOptional()
   lastConfigUpdateDate: Date
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  ortophotoMapPath: string
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  controlMapPath: string
 
   static fromMapConfig(cE: MapConfigEntity) {
     const config = new MapConfigDto()
@@ -100,6 +136,13 @@ export class MapConfigDto {
     config.matomoDimensionId = cE.matomoDimensionId
     config.matomoSiteId = cE.matomoSiteId
     config.lastConfigUpdateDate = cE.lastUpdatedDate
+    config.sdStoragePath = cE.sdStoragePath
+    config.flashStoragePath = cE.flashStoragePath
+    config.targetStoragePolicy = cE.targetStoragePolicy
+    config.flashInventoryMaxSizeMB = cE.flashInventoryMaxSizeMB
+    config.sdInventoryMaxSizeMB = cE.sdInventoryMaxSizeMB
+    config.ortophotoMapPath = cE.ortophotoMapPath
+    config.controlMapPath = cE.controlMapPath
 
     return config
   }

@@ -34,6 +34,9 @@ const kafkaDeliveryConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_DELIVERY_CLIENT_ID),
         consumer: {
             groupId: KAFKA_DELIVERY_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
@@ -49,6 +52,9 @@ const kafkaDeployConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_DEPLOY_CLIENT_ID),
         consumer: {
             groupId: KAFKA_DEPLOY_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
@@ -63,6 +69,9 @@ const kafkaDiscoveryConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_DISCOVERY_CLIENT_ID),
         consumer: {
             groupId: KAFKA_DISCOVERY_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
@@ -78,6 +87,9 @@ const kafkaOfferingConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_OFFERING_CLIENT_ID),
         consumer: {
             groupId: KAFKA_OFFERING_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
@@ -92,6 +104,9 @@ const kafkaProjectManagementConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_PROJECT_MANAGEMENT_CLIENT_ID),
         consumer: {
             groupId: KAFKA_PROJECT_MANAGEMENT_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
@@ -106,6 +121,9 @@ const kafkaUploadConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_UPLOAD_CLIENT_ID),
         consumer: {
             groupId: KAFKA_UPLOAD_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
@@ -120,6 +138,9 @@ const kafkaGetMapConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_GET_MAP_CLIENT_ID),
         consumer: {
             groupId: KAFKA_GET_MAP_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
@@ -134,6 +155,9 @@ const kafkaDeviceConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_MAP_DEVICE_CLIENT_ID),
         consumer: {
             groupId: KAFKA_MAP_DEVICE_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
@@ -148,6 +172,9 @@ const kafkaDiscoverMicroConfig = (): ClientProvider => {
         client: getKafkaConnection(KAFKA_DISCOVERY_MICRO_CLIENT_ID),
         consumer: {
             groupId: KAFKA_DISCOVERY_MICRO_GROUP_ID
+        },
+        run: {
+          partitionsConsumedConcurrently: Number(process.env.CONSUME_CONCURRENT ?? 100)
         }
     }
   }
