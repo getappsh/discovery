@@ -1,9 +1,9 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity } from '@app/common/database/entities';
-import { DeviceRegisterDto, DeviceContentResDto, DeviceMapDto } from '@app/common/dto/device';
+import { In, Not, Repository } from 'typeorm';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity, OrgGroupEntity, OrgUIDEntity, UploadVersionEntity } from '@app/common/database/entities';
+import { DeviceRegisterDto, DeviceContentResDto, DeviceMapDto, DevicesStatisticInfo, DeviceMapStateDto } from '@app/common/dto/device';
 import { ComponentDto } from '@app/common/dto/discovery';
 import { CreateImportDto, CreateImportResDto, ImportStatusResDto, MapDto, MapProperties } from '@app/common/dto/map';
 import { MapDevicesDto } from '@app/common/dto/map/dto/all-maps.dto';
@@ -11,31 +11,165 @@ import { DeviceDto } from '@app/common/dto/device/dto/device.dto';
 import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-device-updates-dto';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
+import { DeviceSoftwareDto, DeviceSoftwareStateDto } from '@app/common/dto/device/dto/device-software.dto';
+import { UploadEventDto, UploadEventEnum } from '@app/common/dto/upload';
+import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
+import { OfferingTopicsEmit } from '@app/common/microservice-client/topics';
+import { Deprecated } from '@app/common/decorators';
 
 @Injectable()
 export class DeviceService {
- 
+
   private readonly logger = new Logger(DeviceService.name);
 
   constructor(
     @InjectRepository(DiscoveryMessageEntity) private readonly discoveryMessageRepo: Repository<DiscoveryMessageEntity>,
+    @InjectRepository(OrgUIDEntity) private readonly orgUIDRepo: Repository<OrgUIDEntity>,
+    @InjectRepository(OrgGroupEntity) private readonly orgGroupRepo: Repository<OrgGroupEntity>,
     @InjectRepository(DeviceEntity) private readonly deviceRepo: Repository<DeviceEntity>,
     @InjectRepository(MapEntity) private readonly mapRepo: Repository<MapEntity>,
     @InjectRepository(DeviceMapStateEntity) private readonly deviceMapRepo: Repository<DeviceMapStateEntity>,
+    @InjectRepository(DeviceComponentEntity) private readonly deviceCompRepo: Repository<DeviceComponentEntity>,
+    @Inject(MicroserviceName.MICRO_DISCOVERY_SERVICE) private readonly discoveryMicroClient: MicroserviceClient,
+
+
     private deviceRepoS: DeviceRepoService
   ) {
   }
 
-  async getRegisteredDevices(): Promise<DeviceDto[]> {
-    this.logger.debug(`Get all registered devices`);
-    
+  async getRegisteredDevices(groups: string[]): Promise<DeviceDto[]> {
+    this.logger.debug(`Get all registered devices, for groups ${groups}`);
+    let groupsIntArray = groups?.map(Number).filter(num => !isNaN(num))
+    if (groupsIntArray) {
+      groupsIntArray = await this.getGroupsChildren(groupsIntArray);
+    }
     const devices = await this.deviceRepo.find({
+      relations: { orgUID: { group: true } },
+      where: groupsIntArray ? { orgUID: { group: { id: In(groupsIntArray) } } } : {},
       order: { createdDate: "DESC" },
       take: 100
     })
     return this.deviceToDevicesDto(devices)
   }
-  
+
+  async getGroupsChildren(gid: number[]) {
+    let ids = new Set(gid)
+    let queryIds = gid
+    while (queryIds.length !== 0) {
+      let chields = await this.orgGroupRepo.find({ where: { parent: { id: In(queryIds) } }, relations: { parent: true } });
+      queryIds = [];
+      chields.forEach(c => {
+        if (!ids.has(c.id)) {
+          queryIds.push(c.id);
+        }
+        ids.add(c.id);
+      })
+    }
+    return Array.from(ids)
+  }
+
+  async getDevicesSoftwareStatisticInfo(params: { [key: string]: string[] }): Promise<DevicesStatisticInfo> {
+
+    const groups = params.groups
+    const software = params.software
+
+    this.logger.debug(`Get devices statistic info, ${groups ? "- groups=" + groups : ""} ${software ? "- software=" + software : ""}`);
+
+    let groupsIntArray = groups?.map(Number).filter(num => !isNaN(num))
+    if (groupsIntArray) {
+      groupsIntArray = await this.getGroupsChildren(groupsIntArray);
+    }
+
+    let devices = await this.deviceRepo.find({
+      select: { components: { state: true, component: { catalogId: true, latest: true } }, orgUID: { group: { id: false } } },
+      relations: { orgUID: { group: true }, components: { component: true } },
+      where: groupsIntArray ? { orgUID: { group: { id: In(groupsIntArray) } } } : {},
+    });
+
+    let count = { sum: devices.length, devices: devices.map(d => d.ID) }
+
+    if (software) {
+      devices = devices.map(d => { d.components = d.components.filter(c => software.includes(c.component.catalogId)); return d })
+    }
+
+    let updatedDvs = devices.map(dvc => {
+      if (dvc.components.length && software
+        ? dvc.components.some(comp => !(comp.state == DeviceComponentStateEnum.INSTALLED && comp.component.latest == true))
+        : dvc.components.some(comp => comp.state != DeviceComponentStateEnum.INSTALLED))
+        return { isUpdate: false, id: dvc.ID }
+      else return { isUpdate: true, id: dvc.ID }
+    })
+      .filter(d => d.isUpdate).map(d => d.id)
+
+    let dvsOnUpdateProcess = devices.map(dvc => {
+      if (dvc.components.length && dvc.components.some(comp => comp.state == DeviceComponentStateEnum.PUSH || comp.state == DeviceComponentStateEnum.DELIVERY || comp.state == DeviceComponentStateEnum.DEPLOY))
+        return { onUpdateProc: true, id: dvc.ID }
+      else return { onUpdateProc: false, id: dvc.ID }
+    }).filter(d => d.onUpdateProc).map(d => d.id)
+
+
+    let info: DevicesStatisticInfo = {
+      count,
+      updated: { sum: updatedDvs.length, devices: updatedDvs },
+      onUpdateProcess: { sum: dvsOnUpdateProcess.length, devices: dvsOnUpdateProcess },
+      updateError: { sum: 0, devices: [] }
+    }
+
+    this.logger.log(`Device info ${JSON.stringify(info)}`);
+
+    return info
+  }
+
+  async getDevicesMapStatisticInfo(params: { [key: string]: string[] }) {
+
+    const groups = params.groups
+    const map = params.map
+
+    this.logger.debug(`Get devices statistic info, ${groups ? "- groups=" + groups : ""} ${map ? "map=" + map : ""}`);
+
+    let groupsIntArray = groups?.map(Number).filter(num => !isNaN(num))
+    if (groupsIntArray) {
+      groupsIntArray = await this.getGroupsChildren(groupsIntArray);
+    }
+
+    let devices = await this.deviceRepo.find({
+      select: { maps: { state: true }, orgUID: { group: { id: false } } },
+      relations: { orgUID: { group: true }, maps: { map: true } },
+      where: groupsIntArray ? { orgUID: { group: { id: In(groupsIntArray) } } } : {},
+    });
+
+    let count = { sum: devices.length, devices: devices.map(d => d.ID) }
+
+    if (map) {
+      devices = devices.map(d => { d.maps = d.maps.filter(c => map.includes(c.map.catalogId)); return d })
+    }
+
+    let updatedDvs = devices.map(dvc => {
+      if (dvc.maps.some(map => map.state !== DeviceMapStateEnum.INSTALLED))
+        return { isUpdate: false, id: dvc.ID }
+      else return { isUpdate: true, id: dvc.ID }
+    })
+      .filter(d => d.isUpdate).map(d => d.id)
+
+    let dvsOnUpdateProcess = devices.map(dvm => {
+      if (dvm.maps.some(map => map.state == DeviceMapStateEnum.PUSH || map.state == DeviceMapStateEnum.DELIVERY || map.state == DeviceMapStateEnum.IMPORT))
+        return { onUpdateProc: true, id: dvm.ID }
+      else return { onUpdateProc: false, id: dvm.ID }
+    }).filter(d => d.onUpdateProc).map(d => d.id)
+
+
+    let info: DevicesStatisticInfo = {
+      count,
+      updated: { sum: updatedDvs.length, devices: updatedDvs },
+      onUpdateProcess: { sum: dvsOnUpdateProcess.length, devices: dvsOnUpdateProcess },
+      updateError: { sum: 0, devices: [] }
+    }
+
+    this.logger.log(`Device info ${JSON.stringify(info)}`);
+
+    return info
+  }
+
   async putDeviceProperties(p: DevicePutDto): Promise<DevicePutDto> {
     this.logger.log(`Put props for device ${p.deviceId}`);
     return await this.deviceRepoS.setDevice(p)
@@ -76,15 +210,14 @@ export class DeviceService {
     if (!device) {
       throw new BadRequestException('Device not found');
     }
-    deviceContent.components = device.components.map(ComponentDto.fromUploadVersionEntity);
     deviceContent.maps = device.maps.filter(map => map.state == DeviceMapStateEnum.INSTALLED).map(map => MapDto.fromMapEntity(map.map))
 
     return deviceContent
   }
 
   // Device - get map
-
   // TODO write test
+  @Deprecated()
   async registerMapToDevice(existsMap: MapEntity, deviceId: string) {
     this.logger.log(`register map catalog id ${existsMap.catalogId} to device ${deviceId}`)
     try {
@@ -105,11 +238,12 @@ export class DeviceService {
 
       if (!device.maps || device.maps.length == 0 || !device.maps.find(map => map.map.catalogId == existsMap.catalogId)) {
 
-        let deviceMap = this.deviceMapRepo.create()
-        deviceMap.device = device
-        deviceMap.map = existsMap
-        deviceMap.state = DeviceMapStateEnum.IMPORT
-        this.deviceMapRepo.upsert(deviceMap, ['device', 'map'])
+        let dms = new DeviceMapStateDto()
+        dms.catalogId = existsMap.catalogId;
+        dms.deviceId = device.ID;
+        dms.state = DeviceMapStateEnum.IMPORT;
+
+        this.updateDeviceMap(dms);
       }
 
     } catch (error) {
@@ -122,70 +256,39 @@ export class DeviceService {
     this.logger.log(`Register map inventory to device - ${inventory.deviceId}`)
 
     try {
-
+      let deviceMaps = [];
       const device = await this.deviceRepoS.getOrCreateDevice(inventory.deviceId)
-      await this.updateOrCreateDeviceMapE(device, { ...inventory.inventory }, inventory.maps)
-      await this.deleteNotExistDeviceMapE(inventory.deviceId, inventory.inventory)
+
+      let mapsOnDevice = await this.deviceMapRepo.find({ where: { state: In([DeviceMapStateEnum.INSTALLED, DeviceMapStateEnum.DELIVERY, DeviceMapStateEnum.IMPORT, DeviceMapStateEnum.UNINSTALLED]), device: { ID: device.ID } }, relations: { map: true, device: true } });
+      mapsOnDevice.forEach(m => {
+        if (!(m.map.catalogId in inventory.inventory)) {
+          let dms = new DeviceMapStateDto()
+          dms.catalogId = m.map.catalogId;
+          dms.deviceId = inventory.deviceId;
+          dms.state = DeviceMapStateEnum.UNINSTALLED;
+          deviceMaps.push(dms);
+        }
+      });
+
+      this.logger.debug(`Uninstalled ${deviceMaps.length} maps`)
+
+      Object.entries(inventory.inventory).forEach(([catalogId, state]) => {
+        const map = inventory.maps.find(map => map.catalogId === catalogId);
+        if (map) {
+          let dms = new DeviceMapStateDto()
+          dms.catalogId = catalogId;
+          dms.deviceId = inventory.deviceId;
+          dms.state = state;
+          deviceMaps.push(dms);
+        }
+      })
+      this.logger.debug(`map list to update or save ${deviceMaps}`);
+      this.updateDeviceMap(deviceMaps);
 
     } catch (error) {
       this.logger.error(error)
     }
   }
-
-  async updateOrCreateDeviceMapE(device: DeviceEntity, inventory: Record<string, DeviceMapStateEnum>, maps: MapEntity[]) {
-
-    // Update first the exist device map entity
-    // TODO need query builder to select only map that in inventory list
-    // TODO need handling when inventory is empty === {}
-    // TODO pass repo queries if it possible to deviceRepoS
-
-    const deviceMap = await this.deviceMapRepo.find({ where: { device: { ID: device.ID } }, relations: { device: true, map: true } })
-    deviceMap.forEach(dM => {
-      if (inventory[dM.map.catalogId]) {
-        this.logger.debug(`Update state of map '${dM.map.catalogId}' for device '${device.ID}' to ${inventory[dM.map.catalogId]}`)
-        dM.state = inventory[dM.map.catalogId]
-        delete inventory[dM.map.catalogId]
-      }
-    })
-
-    // Create the new device map entity
-    const mapDeviceHs: DeviceMapStateEntity[] = []
-    Object.keys(inventory).forEach(mapID => {
-      const map = maps.find(m => m.catalogId == mapID)
-      if (map) {
-        this.logger.debug(`Create a device map entity for map '${map.catalogId}' and device '${device.ID}' with state of '${inventory[mapID]}'`)
-        const dE = new DeviceMapStateEntity()
-        dE.device = device
-        dE.map = maps.find(m => m.catalogId == mapID)
-        dE.state = inventory[mapID]
-        mapDeviceHs.push(dE)
-      }
-    })
-
-    // Save both
-    await this.deviceMapRepo.upsert([...deviceMap, ...mapDeviceHs], ['device', 'map'])
-  }
-
-  async deleteNotExistDeviceMapE(deviceId: string, inventory: Record<string, DeviceMapStateEnum>) {
-
-    // Delete device map entity of maps that not exist in inventory list      
-    const queryBuilder = this.deviceRepo.createQueryBuilder("d")
-      .innerJoinAndSelect('d.maps', 'dm', 'd.ID = :deviceId', { deviceId })
-      .innerJoinAndSelect('dm.map', 'm');
-
-    const ids = Object.keys(inventory)
-    if (ids.length > 0) {
-      queryBuilder.where("m.catalogId NOT IN (:...ids)", { ids });
-    }
-
-    const dm = await queryBuilder.getOne();
-
-    if (dm) {
-      this.logger.debug(`Delete device map entities of maps '${dm.maps.map(m => m.map.catalogId)}' for device '${dm.ID}'`)
-      await this.deviceMapRepo.remove(dm.maps)
-    }
-  }
-
 
   // TODO write test
   async getRequestedMaps(): Promise<MapDto[]> {
@@ -193,7 +296,7 @@ export class DeviceService {
 
     let allMapEntity = await this.mapRepo.find({
       order: { createDateTime: "DESC" },
-      relations: {mapProduct: true},
+      relations: { mapProduct: true },
       take: 70
     })
     // let allMapEntity = await this.mapRepo.createQueryBuilder("map")
@@ -223,16 +326,20 @@ export class DeviceService {
   }
 
   async deviceToDevicesDto(devices: DeviceEntity[]): Promise<DeviceDto[]> {
-    return await Promise.all(devices.map(async (device) => {
-      const discoveryMes = await this.discoveryMessageRepo.findOne({
-        where: { device: { ID: device.ID } },
-        order: { lastUpdatedDate: "DESC" },
-      })
+    const ids = devices.map(device => device.ID);
+    const discoveries = await this.discoveryMessageRepo.createQueryBuilder("discovery")
+      .where("discovery.deviceID IN  (:...ids)", { ids })
+      .orderBy("discovery.deviceID")
+      .addOrderBy("discovery.lastUpdatedDate", "DESC")
+      .distinctOn(["discovery.deviceID"])
+      .loadAllRelationIds()
+      .getMany();
 
-      // if @discoveryMes is undefined it can by a fake device like TNG
-      // return discoveryMes ? DeviceDto.fromDeviceEntity(device, discoveryMes) : null
-      return DeviceDto.fromDeviceEntity(device, discoveryMes)
-    }))
+    return devices.map(device => {
+      const dis = discoveries.find(dis => (dis?.device || "") as string == device.ID)
+      return DeviceDto.fromDeviceEntity(device, dis);
+
+    })
   }
 
 
@@ -241,4 +348,160 @@ export class DeviceService {
     // TODO
     return ''
   }
+
+
+  async getDeviceSoftwares(deviceId: string): Promise<DeviceSoftwareDto> {
+    this.logger.debug(`get softwares for device ${deviceId}`);
+    let device = await this.deviceRepo.findOne({ where: { ID: deviceId }, relations: { components: { component: true } } });
+    if (!device) {
+      this.logger.error(`device ${deviceId} not exits`)
+      throw new BadRequestException("Device not exits")
+    }
+    let deviceDto = (await this.deviceToDevicesDto([device]))[0] || {} as DeviceDto;
+
+    return DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
+  }
+
+
+  async updateDeviceMap(state: DeviceMapStateDto | DeviceMapStateDto[]) {
+    this.logger.log("Update device map state")
+    let states = Array.isArray(state) ? state : [state]
+
+    let uninstalled = states.filter(s => s.state === DeviceMapStateEnum.UNINSTALLED || s.state === DeviceMapStateEnum.DELETED);
+    this.logger.debug(`Maps that are uninstalled form the device: ${JSON.stringify(uninstalled)}`)
+    for (let s of uninstalled) {
+      this.deviceMapRepo.delete({ map: { catalogId: s.catalogId }, device: { ID: s.deviceId } });
+    }
+
+    states = states.filter(s => s.state !== DeviceMapStateEnum.UNINSTALLED && s.state !== DeviceMapStateEnum.DELETED)
+
+    let deviceMaps = []
+    for (let s of states) {
+      if (s.state === DeviceMapStateEnum.INSTALLED) {
+        this.sendMapInstallEvent2Offering(s);
+      }
+      let dm = new DeviceMapStateEntity()
+      dm.map = { catalogId: s.catalogId } as MapEntity;
+      dm.device = { ID: s.deviceId } as DeviceEntity;
+      dm.state = s.state;
+
+      deviceMaps.push(dm);
+    }
+    this.logger.debug(`Maps to update or save: ${deviceMaps}`);
+
+    try {
+      if (deviceMaps) {
+        await this.deviceMapRepo.save(deviceMaps)
+      }
+    } catch (err) {
+      this.logger.debug("failed to insert try to update")
+
+      let queryBuilder = this.deviceMapRepo.createQueryBuilder("entity");
+      queryBuilder.select("entity.device_ID")
+      deviceMaps.forEach((obj, index) => {
+        queryBuilder.orWhere(
+          'entity.device_ID = :id' + index + ' AND entity.map_catalog_id = :catalogId' + index,
+          { ['id' + index]: obj?.device?.ID, ['catalogId' + index]: obj.map?.catalogId },
+        );
+      });
+      let ids = (await queryBuilder.getRawMany()).map(d => d.device_ID);
+
+      let fdm = deviceMaps.filter(d => !(d.state == DeviceMapStateEnum.PUSH && ids.includes(d?.device?.ID)));
+      if (fdm) {
+        this.logger.debug(`updated map list to update or save ${fdm}`);
+
+        this.deviceMapRepo.upsert(fdm, ['device', 'map']).catch(err =>
+          this.logger.error(`failed to update device map state: ${err}`)
+        )
+      }
+    }
+  }
+  async updateDeviceSoftware(state: DeviceSoftwareStateDto | DeviceSoftwareStateDto[]) {
+    this.logger.log("Update device software state")
+    let states = Array.isArray(state) ? state : [state]
+
+    let uninstalled = states.filter(s => s.state === DeviceComponentStateEnum.UNINSTALLED);
+    this.logger.debug(`Components that are uninstalled form the device: ${JSON.stringify(uninstalled)}`)
+    for (let s of uninstalled) {
+      this.deviceCompRepo.delete({ component: { catalogId: s.catalogId }, device: { ID: s.deviceId } });
+    }
+
+    let deleted = states.filter(s => s.state === DeviceComponentStateEnum.DELETED);
+    this.logger.debug(`Components that are deleted form the device: ${JSON.stringify(deleted)}`)
+    for(let s of deleted){
+      this.deviceCompRepo.delete({ 
+        component: { catalogId: s.catalogId }, 
+        device: { ID: s.deviceId },
+        state: Not(In([DeviceComponentStateEnum.DEPLOY, DeviceComponentStateEnum.INSTALLED, DeviceComponentStateEnum.UNINSTALLED]))
+       });
+    }
+
+    states = states.filter(s => s.state !== DeviceComponentStateEnum.UNINSTALLED &&  s.state !== DeviceComponentStateEnum.DELETED)
+    let deviceComps = []
+    for (let s of states) {
+      if (s.state === DeviceComponentStateEnum.INSTALLED) {
+        this.sendSoftwareInstallEvent2Offering(s);
+      }
+      let dc = new DeviceComponentEntity()
+      dc.component = { catalogId: s.catalogId } as UploadVersionEntity;
+      dc.device = { ID: s.deviceId } as DeviceEntity;
+      dc.state = s.state;
+
+      deviceComps.push(dc);
+    }
+    this.logger.debug(`Components to update or save: ${deviceComps}`);
+
+    try {
+      if (deviceComps) {
+        await this.deviceCompRepo.save(deviceComps)
+      }
+    } catch (err) {
+      this.logger.debug("failed to insert try to update")
+
+      let queryBuilder = this.deviceCompRepo.createQueryBuilder("entity");
+      queryBuilder.select("entity.device_ID")
+      deviceComps.forEach((obj, index) => {
+        queryBuilder.orWhere(
+          'entity.device_ID = :id' + index + ' AND entity.component_catalog_id = :catalogId' + index,
+          { ['id' + index]: obj?.device?.ID, ['catalogId' + index]: obj.component?.catalogId },
+        ).andWhere('entity.state != :state', { state: DeviceComponentStateEnum.OFFERING });
+      });
+      let ids = (await queryBuilder.getRawMany()).map(d => d.device_ID);
+
+      let fdc = deviceComps.filter(d => !((d.state == DeviceComponentStateEnum.PUSH || d.state == DeviceComponentStateEnum.OFFERING) && ids.includes(d?.device?.ID)));
+      if (fdc) {
+        this.logger.debug(`updated comps list to update or save ${fdc}`);
+
+        this.deviceCompRepo.upsert(fdc, ['device', 'component']).catch(err =>
+          this.logger.error(`failed to update device component state: ${err}`)
+        )
+      }
+    }
+  }
+
+  async sendSoftwareInstallEvent2Offering(event: DeviceSoftwareStateDto) {
+    if (event.state !== DeviceComponentStateEnum.INSTALLED) {
+      return
+    }
+    this.logger.verbose(`send software installed event`);
+    await this.discoveryMicroClient.emit(OfferingTopicsEmit.DEVICE_SOFTWARE_EVENT, event);
+  }
+
+  async sendMapInstallEvent2Offering(event: DeviceMapStateDto) {
+    if (event.state !== DeviceMapStateEnum.INSTALLED) {
+      return
+    }
+    this.logger.verbose(`Send map installed event`);
+    await this.discoveryMicroClient.emit(OfferingTopicsEmit.DEVICE_MAP_EVENT, event);
+  }
+
+  async componentEvent(compEvent: UploadEventDto) {
+    if (compEvent.event === UploadEventEnum.ERROR) {
+      this.logger.log(`Component event: ${compEvent.event}, catalogId ${compEvent.catalogId}`);
+      this.logger.log(`Remove offering or push from DeviceSoftware state`);
+      this.deviceCompRepo.delete({ component: { catalogId: compEvent.catalogId }, state: In([DeviceComponentStateEnum.PUSH, DeviceComponentStateEnum.OFFERING]) });
+    }
+  }
+
 }
+

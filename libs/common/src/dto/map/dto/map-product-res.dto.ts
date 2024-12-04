@@ -39,13 +39,13 @@ export class MapProductResDto {
   description: string;
 
   @ApiProperty({ required: false })
-  @IsOptional()    
+  @IsOptional()
   @Type(() => Date)
   @IsDate()
   imagingTimeBeginUTC: Date;
 
   @ApiProperty({ required: false })
-  @IsOptional()    
+  @IsOptional()
   @Type(() => Date)
   @IsDate()
   imagingTimeEndUTC: Date;
@@ -72,7 +72,7 @@ export class MapProductResDto {
   region: string;
 
   @ApiProperty({ required: false })
-  @IsOptional()    
+  @IsOptional()
   @Type(() => Date)
   @IsDate()
   ingestionDate: Date;
@@ -82,14 +82,14 @@ export class MapProductResDto {
   }
 
 
-  static fromRecordsRes(records: MCRasterRecordDto): MapProductResDto {    
+  static fromRecordsRes(records: MCRasterRecordDto): MapProductResDto {
     const product = new MapProductResDto()
     product.id = records["mc:id"]
-    product.productId = records["mc:productName"]
+    product.productId = records["mc:productId"]
     product.productName = records["mc:productName"]
     product.productVersion = Number(records["mc:productVersion"])
     product.productType = records["mc:productType"]
-    product.productSubType = Number(records["mc:productSubType"]);
+    // product.productSubType = Number(records["mc:productSubType"]) || null ;
     product.description = records["mc:description"];
     product.imagingTimeBeginUTC = new Date(records["mc:imagingTimeBeginUTC"]);
     product.imagingTimeEndUTC = new Date(records["mc:imagingTimeEndUTC"]);
@@ -109,7 +109,7 @@ export class MapProductResDto {
     product.productName = pE.productName
     product.productVersion = pE.productVersion
     product.productType = pE.productType
-    product.productSubType = pE.productSubType
+    // product.productSubType = pE.productSubType
     product.description = pE.description
     product.imagingTimeBeginUTC = new Date(pE.imagingTimeBeginUTC);
     product.imagingTimeEndUTC = new Date(pE.imagingTimeEndUTC);

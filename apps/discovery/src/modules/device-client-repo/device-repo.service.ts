@@ -1,8 +1,9 @@
-import { DeviceEntity, MapEntity, DeviceMapStateEntity } from "@app/common/database/entities";
+import { DeviceEntity, MapEntity, DeviceMapStateEntity, OrgGroupEntity } from "@app/common/database/entities";
+import { OrgUIDEntity } from "@app/common/database/entities/org-uid.entity";
 import { DevicePutDto } from "@app/common/dto/device/dto/device-put.dto";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 
 
 @Injectable()
@@ -12,6 +13,7 @@ export class DeviceRepoService {
 
   constructor(
     @InjectRepository(DeviceEntity) private readonly deviceRepo: Repository<DeviceEntity>,
+    @InjectRepository(OrgUIDEntity) private readonly orgIdEntity: Repository<OrgUIDEntity>,
   ) { }
 
   async getOrCreateDevice(deviceId: string): Promise<DeviceEntity> {
@@ -28,6 +30,14 @@ export class DeviceRepoService {
     return device
   }
 
+  async getDeviceOrgId(device: string | string[]): Promise<OrgUIDEntity[]> {
+    this.logger.log(`Get organization id for the given devices`);
+
+    const devices = Array.isArray(device) ? device : [device]
+    const dvcOrgIds = await this.orgIdEntity.find({ where: { device: In(devices) } })
+    return dvcOrgIds
+  }
+
   async setDevice(p: DevicePutDto) {
     const device = await this.deviceRepo.findOne({ where: { ID: p.deviceId } })
 
@@ -37,9 +47,28 @@ export class DeviceRepoService {
       throw new BadRequestException(mes)
     }
     this.logger.log(`Save props for device ${device.ID}`)
-    device.name = p.name
+    if (device.name !== undefined) {
+      device.name = p.name
+    }
     const savedDevice = await this.deviceRepo.save(device)
-    return DevicePutDto.fromDeviceEntity(savedDevice)
 
+    let orgId: OrgUIDEntity;
+    if (p.orgUID) {
+      if (p.orgUID != null) {
+        // TODO handle duplicate case
+        orgId = this.orgIdEntity.create()
+        orgId.UID = p.orgUID
+        orgId.device = device
+
+      } else {
+        orgId = await this.orgIdEntity.findOne({ where: { device: { ID: device.ID } } })
+        orgId.device = null
+      }
+
+      const savedOrgId = await this.orgIdEntity.save(orgId);
+
+      savedDevice.orgUID = savedOrgId
+    }
+    return DevicePutDto.fromDeviceEntity(savedDevice)
   }
 }

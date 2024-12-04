@@ -1,3 +1,7 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
+import apm from 'nestjs-elastic-apm';
+
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { DiscoveryModule } from './discovery.module';
