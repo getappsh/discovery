@@ -20,9 +20,8 @@ export class GroupController {
   }
 
   @MessagePattern(DevicesGroupTopics.GET_GROUPS)
-  getGroups(@RpcPayload() groupId?: any) {    
-    const id = groupId.stringValue ? Number(groupId.stringValue) : null
-    return this.groupService.getGroups(id);
+  getGroups(@RpcPayload() groupId?: any) {       
+    return this.groupService.getGroups(groupId);
   }
 
   @MessagePattern(DevicesGroupTopics.GET_GROUP_DEVICES)

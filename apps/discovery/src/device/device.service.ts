@@ -318,7 +318,7 @@ export class DeviceService {
       this.logger.error(`map of catalog id ${catalogId} not exits`)
       throw new BadRequestException("Map not exits")
     }
-
+    
     const devices = mapEntity.devices.map(device => device.device)
 
     let mepDeviceEntity = await this.deviceToDevicesDto(devices)
@@ -327,6 +327,11 @@ export class DeviceService {
 
   async deviceToDevicesDto(devices: DeviceEntity[]): Promise<DeviceDto[]> {
     const ids = devices.map(device => device.ID);
+
+    if (ids.length === 0) {
+      return []; 
+    }
+    
     const discoveries = await this.discoveryMessageRepo.createQueryBuilder("discovery")
       .where("discovery.deviceID IN  (:...ids)", { ids })
       .orderBy("discovery.deviceID")
