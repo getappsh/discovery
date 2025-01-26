@@ -7,29 +7,29 @@ import { JobsEntity } from "@app/common/database/entities/map-updatesCronJob";
 
 
 @Injectable()
-export class DeviceConfigService implements OnApplicationBootstrap{
- 
+export class DeviceConfigService implements OnApplicationBootstrap {
+
   private readonly logger = new Logger(DeviceConfigService.name);
 
   constructor(
     @InjectRepository(DeviceConfigEntity) private readonly configRepo: Repository<DeviceConfigEntity>,
     @InjectRepository(JobsEntity) private readonly jobRepo: Repository<JobsEntity>,
-  ) {}
+  ) { }
 
-  async getDeviceConfig(group: string){
+  async getDeviceConfig(group: string) {
     this.logger.log(`Get device config for group: ${group}`);
-    let eConfig = await this.configRepo.findOneBy({group: group})
-    if (!eConfig){
+    let eConfig = await this.configRepo.findOneBy({ group: group })
+    if (!eConfig) {
       throw new NotFoundException(`Not found config for group: '${group}'.`)
     }
-    let configRes =  fromConfigEntity(eConfig)
+    let configRes = fromConfigEntity(eConfig)
     configRes.lastCheckingMapUpdatesDate = await this.getLastMapUpdatesChecking()
 
     return configRes;
 
   }
 
-  async setDeviceConfig(config: WindowsConfigDto | AndroidConfigDto){
+  async setDeviceConfig(config: WindowsConfigDto | AndroidConfigDto) {
     delete config['headers']
 
     let eConfig = await this.setConfigValues(config)
@@ -38,16 +38,41 @@ export class DeviceConfigService implements OnApplicationBootstrap{
   }
 
 
-  async setConfigValues(config: WindowsConfigDto | AndroidConfigDto){
+  async setConfigValues(config: WindowsConfigDto | AndroidConfigDto) {
     this.logger.debug(`Update device config group :${config.group}`)
-    let eConfig = await this.configRepo.findOneBy({group: config.group})
+    let eConfig = await this.configRepo.findOneBy({ group: config.group })
     if (!eConfig) {
       eConfig = this.configRepo.create()
-      eConfig.data = {};
+      eConfig.data = {} as WindowsConfigDto | AndroidConfigDto;
       eConfig.group = config.group
     }
-    delete config.group
 
+    if (config.group === "windows" && 'layers' in config) {
+      const layersConfig = (config as WindowsConfigDto).layers
+      delete config.layers
+      if (!(eConfig.data as WindowsConfigDto).layers) {
+        (eConfig.data as WindowsConfigDto).layers = layersConfig.filter((layer, index, self) =>
+          !layer.delete && index === self.findIndex(l => l.layerName === layer.layerName)
+        )
+      } else {
+        layersConfig.forEach(layer => {
+          const index = (eConfig.data as WindowsConfigDto).layers.findIndex(l => l.layerName === layer.layerName)
+          if (index === -1) {
+            if (!layer.delete) {
+              (eConfig.data as WindowsConfigDto).layers.push(layer);
+            }
+          } else {
+            if (!layer.delete) {
+              (eConfig.data as WindowsConfigDto).layers[index] = layer
+            } else {
+              !["אורטופוטו", "מפת שליטה"].includes(layer.layerName) && (eConfig.data as WindowsConfigDto).layers.splice(index, 1)
+            }
+          }
+        })
+      }
+    }
+
+    delete config.group
     for (const key in config) {
       eConfig.data[key] = config[key]
     }
@@ -56,7 +81,7 @@ export class DeviceConfigService implements OnApplicationBootstrap{
   }
 
   async setDefaultAndroidConfig() {
-    const eCong = await this.configRepo.findOneBy({group: 'android'})
+    const eCong = await this.configRepo.findOneBy({ group: 'android' })
 
     const defaults = new AndroidConfigDto()
     defaults.deliveryTimeoutMins = 30
@@ -87,7 +112,7 @@ export class DeviceConfigService implements OnApplicationBootstrap{
   }
 
   async setDefaultWindowsConfig() {
-    const eCong = await this.configRepo.findOneBy({group: 'windows'})
+    const eCong = await this.configRepo.findOneBy({ group: 'windows' })
     const defaults = new WindowsConfigDto()
     defaults.deliveryTimeoutMins = 30
     defaults.downloadRetryTime = 3
@@ -100,7 +125,7 @@ export class DeviceConfigService implements OnApplicationBootstrap{
     defaults.periodicConfIntervalMins = 1440
     defaults.periodicMatomoIntervalMins = 1440
     defaults.mapMinInclusionInPercentages = 60
-
+    defaults.layers = [{ "layerName": "אורטופוטו" }, { "layerName": "מפת שליטה" }]
     const defaultsToSave = Object.assign({}, defaults, eCong?.data)
 
     try {
@@ -109,7 +134,7 @@ export class DeviceConfigService implements OnApplicationBootstrap{
     } catch (error) {
       this.logger.error(error)
     }
-  
+
   }
 
 
@@ -124,4 +149,4 @@ export class DeviceConfigService implements OnApplicationBootstrap{
 
 
 }
-  
+
