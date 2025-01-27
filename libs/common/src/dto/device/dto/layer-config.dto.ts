@@ -56,7 +56,6 @@ export class LayersConfigDto {
     required: false,
   })
   @IsOptional()
-  @IsUrl()
   @Expose()
   capabilitiesLayerName?: string;
   
