@@ -4,6 +4,7 @@ import { DeviceMapStateEntity } from "./device-map-state.entity";
 import { OrgUIDEntity } from "./org-uid.entity";
 import { DeviceComponentEntity } from "./device-component-state.entity";
 import { PlatformEntity } from "./platform.entity";
+import { ReleaseEntity } from "./release.entity";
 
 @Entity("device")
 export class DeviceEntity {
@@ -41,7 +42,7 @@ export class DeviceEntity {
   @Column({ name: 'available_storage', nullable: true })
   availableStorage: string
 
-  @ManyToMany(() => UploadVersionEntity, uploadVersionEntity => uploadVersionEntity.devices, {
+  @ManyToMany(() => ReleaseEntity, releaseEntity => releaseEntity.devices, {
     cascade: true
   })
 
