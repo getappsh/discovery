@@ -3,6 +3,7 @@ import { UploadVersionEntity } from "./upload-version.entity";
 import { DeviceMapStateEntity } from "./device-map-state.entity";
 import { OrgUIDEntity } from "./org-uid.entity";
 import { DeviceComponentEntity } from "./device-component-state.entity";
+import { PlatformEntity } from "./platform.entity";
 
 @Entity("device")
 export class DeviceEntity {
@@ -52,5 +53,16 @@ export class DeviceEntity {
 
   @OneToOne(type => OrgUIDEntity, org => org.device, { nullable: true })
   orgUID: OrgUIDEntity
+
+  @ManyToMany(() => PlatformEntity, { eager: true })
+  @JoinTable({
+      name: "device_platforms",
+      joinColumn: { name: "device_ID", referencedColumnName: "ID" },
+      inverseJoinColumn: { name: "platform_name", referencedColumnName: "name" },
+  })
+  platforms: PlatformEntity[];
+
+  @Column("text", {name: "formations", array: true, nullable: true})
+  formations: string[];
 
 }
