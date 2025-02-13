@@ -1,16 +1,16 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DiscoveryType, UploadVersionEntity } from '@app/common/database/entities';
-import { DiscoveryMessageDto } from '@app/common/dto/discovery';
+import { Brackets, In, Not, Repository } from 'typeorm';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DiscoveryType, PlatformEntity, ReleaseEntity, UploadVersionEntity } from '@app/common/database/entities';
+import { ComponentStateDto, DiscoveryMessageDto, DiscoveryMessageV2Dto } from '@app/common/dto/discovery';
 import { OfferingTopics } from '@app/common/microservice-client/topics';
 import { MTlsStatusDto } from '@app/common/dto/device';
 import { ComponentDto } from '@app/common/dto/discovery';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
 import { DeviceService } from '../device/device.service';
-import { DeviceSoftwareStateDto } from '@app/common/dto/device/dto/device-software.dto';
+import { DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
 
 @Injectable()
 export class DiscoveryService implements OnModuleInit {
@@ -22,8 +22,45 @@ export class DiscoveryService implements OnModuleInit {
     @InjectRepository(UploadVersionEntity) private readonly uploadVersionRepo: Repository<UploadVersionEntity>,
     @InjectRepository(DeviceEntity) private readonly deviceRepo: Repository<DeviceEntity>,
     @InjectRepository(DeviceComponentEntity) private readonly deviceComponentRepo: Repository<DeviceComponentEntity>,
+    @InjectRepository(PlatformEntity) private readonly platformRepo: Repository<PlatformEntity>,
+    @InjectRepository(ReleaseEntity) private readonly releaseRepo: Repository<ReleaseEntity>,
     private readonly deviceService: DeviceService,
   ) {
+  }
+
+  async discoveryDeviceContext(dto: DiscoveryMessageV2Dto){
+    let device = this.deviceRepo.create(dto.general.physicalDevice);
+    device.lastConnectionDate = new Date();
+    device.formations = dto?.softwareData?.formations;
+    device.platforms = await this.getOrCreatePlatforms(dto?.softwareData?.platforms)
+
+    this.logger.debug("save device")
+    await this.deviceRepo.save(device)
+
+    if (dto.discoveryType === DiscoveryType.GET_APP){      
+      await this.setCompsOnDeviceV2(device.ID, dto.softwareData.components)
+    }
+
+    const dm = new DiscoveryMessageEntity()
+    dm.personalDevice = dto.general.personalDevice;
+    dm.situationalDevice = dto.general.situationalDevice;
+    dm.discoveryType = dto.discoveryType
+    dm.discoveryData = dto.softwareData;
+    dm.device = device
+
+    this.logger.verbose(`discovery message ${dm}`);
+    this.discoveryMessageRepo.save(dm);
+  }
+
+  private async getOrCreatePlatforms(platforms?: string[]) {
+    this.logger.debug(`Get or create platforms: ${JSON.stringify(platforms)}`)
+    if (!platforms) {
+      return
+    }
+    if (platforms.length === 0) {
+      return [];
+    }
+    return this.platformRepo.save(platforms.map(platform => {return { name: platform }}));
   }
 
   async discoveryMessage(discovery: DiscoveryMessageDto) {
@@ -59,30 +96,72 @@ export class DiscoveryService implements OnModuleInit {
 
   }
 
+  private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]){
+    const compsCatalogId = Array.from(new Set(compsState.map(comp => comp.catalogId)));
+
+    let deviceComps: DeviceComponentStateDto[] = []
+
+    // Find the registered components of the device, and set as uninstall if they are not in the list
+    // TODO: maybe to delete them here
+    let uninstalledComps = await this.deviceComponentRepo.find({
+      select: {device: {ID: true}, release: {catalogId: true}},
+      where: {
+        device: {ID: deviceId},
+        release: {catalogId: Not(In(compsCatalogId))}
+      }, 
+      relations: {release: true, device: true}});
+      
+
+    this.logger.debug(` comps ${uninstalledComps.map(c => c.release.catalogId)}`);
+    uninstalledComps.forEach(c => {
+      let dss = new DeviceComponentStateDto()
+      dss.catalogId = c.release.catalogId;
+      dss.deviceId = c.device.ID;
+      dss.state = DeviceComponentStateEnum.UNINSTALLED;
+      deviceComps.push(dss);
+    })
+
+
+    const comps = await this.releaseRepo
+    .find({ where: { catalogId: In(compsCatalogId)}, select: {catalogId: true} })
+    .then(comps => comps.map(c => c.catalogId));
+
+    console.log({comps})
+
+    compsState
+      .filter(cs => comps.includes(cs.catalogId))
+      .forEach(c => deviceComps.push(DeviceComponentStateDto.fromParent(c, deviceId)))
+      
+    console.log(deviceComps)
+    this.logger.debug(`comps list to update or save ${deviceComps}`);
+    await this.deviceService.updateDeviceSoftware(deviceComps);
+  }
+
+
   private async setCompsOnDevice(deviceId: string, compsCatalogId: string[]){
     let comps = await this.uploadVersionRepo.find({ where: { catalogId: In(compsCatalogId) } })
 
-    let deviceComps: DeviceSoftwareStateDto[] = []
+    let deviceComps: DeviceComponentStateDto[] = []
 
     let currentInstalledComps = await this.deviceComponentRepo.find({
       where: {
         state: In([DeviceComponentStateEnum.INSTALLED, DeviceComponentStateEnum.UNINSTALLED]), 
         device: {ID: deviceId}
       }, 
-      relations: {component: true, device: true}});
+      relations: {release: true, device: true}});
 
-    this.logger.debug(`get all current installed comps ${currentInstalledComps.map(c => c.component.catalogId)}`);
+    this.logger.debug(`get all current installed comps ${currentInstalledComps.map(c => c.release.catalogId)}`);
     currentInstalledComps.forEach(c => {
-      if (!compsCatalogId.includes(c.component.catalogId)){
-          let dss = new DeviceSoftwareStateDto()
-          dss.catalogId = c.component.catalogId;
+      if (!compsCatalogId.includes(c.release.catalogId)){
+          let dss = new DeviceComponentStateDto()
+          dss.catalogId = c.release.catalogId;
           dss.deviceId = c.device.ID;
           dss.state = DeviceComponentStateEnum.UNINSTALLED;
           deviceComps.push(dss);
       }
     })
     for (let comp of comps){
-      let dss = new DeviceSoftwareStateDto()
+      let dss = new DeviceComponentStateDto()
       dss.catalogId = comp.catalogId;
       dss.deviceId = deviceId;
       dss.state = DeviceComponentStateEnum.INSTALLED;

@@ -2,7 +2,7 @@ import { DeviceTopics, DeviceTopicsEmit } from '@app/common/microservice-client/
 import { Controller } from '@nestjs/common';
 import { EventPattern, MessagePattern } from '@nestjs/microservices';
 import { DiscoveryService } from './discovery.service';
-import { DiscoveryMessageDto } from '@app/common/dto/discovery';
+import { DiscoveryMessageDto, DiscoveryMessageV2Dto } from '@app/common/dto/discovery';
 import { MTlsStatusDto } from '@app/common/dto/device';
 import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
 import { RpcPayload } from '@app/common/microservice-client';
@@ -22,6 +22,11 @@ export class DiscoveryController {
     this.discoveryService.discoveryMessage(data)
   }
 
+  @EventPattern(DeviceTopicsEmit.DISCOVER_DEVICE_CONTEXT_V2)
+  discoverDeviceContextV2(@RpcPayload() dto: DiscoveryMessageV2Dto){
+    this.discoveryService.discoveryDeviceContext(dto);
+  }
+  
   @EventPattern(DeviceTopicsEmit.IM_PUSH_DISCOVERY)
   imPushDiscoveryDevices(@RpcPayload() devicesDiscovery: DeviceDiscoverDto[]){
     this.discoveryService.imPushDiscoveryDevices(devicesDiscovery);

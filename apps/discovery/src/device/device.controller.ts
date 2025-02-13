@@ -12,7 +12,7 @@ import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-dev
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { AndroidConfigDto, WindowsConfigDto } from '@app/common/dto/device/dto/device-config.dto';
 import { DeviceConfigService } from './device-config.service';
-import { DeviceSoftwareDto, DeviceSoftwareStateDto } from '@app/common/dto/device/dto/device-software.dto';
+import { DeviceSoftwareDto, DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { UploadEventDto } from '@app/common/dto/upload';
 import { Deprecated } from '@app/common/decorators';
 import { RpcPayload } from '@app/common/microservice-client';
@@ -92,7 +92,7 @@ export class DeviceController {
   }
 
   @EventPattern(DeviceTopicsEmit.UPDATE_DEVICE_SOFTWARE_STATE)
-  updateDeviceSoftware(@RpcPayload() state: DeviceSoftwareStateDto | DeviceSoftwareStateDto[]) {
+  updateDeviceSoftware(@RpcPayload() state: DeviceComponentStateDto | DeviceComponentStateDto[]) {
     this.deviceService.updateDeviceSoftware(state)
   }
 
