@@ -28,12 +28,12 @@ import { JobsEntity } from '@app/common/database/entities/map-updatesCronJob';
     LoggerModule.forRoot({httpCls: false, jsonLogger: process.env.LOGGER_FORMAT === 'JSON', name: "Discovery"}),
     ApmModule,
     MicroserviceModule.register({
-      name: MicroserviceName.MICRO_DISCOVERY_SERVICE,
-      type: MicroserviceType.MICRO_DISCOVERY,
+      name: MicroserviceName.OFFERING_SERVICE,
+      type: MicroserviceType.OFFERING,
     }),
     DatabaseModule,
     TypeOrmModule.forFeature([
-      DiscoveryMessageEntity, UploadVersionEntity, DeviceEntity, MapEntity,
+      DiscoveryMessageEntity, DeviceEntity, MapEntity,
        OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity,
         DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity
       ]),

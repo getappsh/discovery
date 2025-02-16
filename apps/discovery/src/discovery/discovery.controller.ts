@@ -11,12 +11,6 @@ import { RpcPayload } from '@app/common/microservice-client';
 export class DiscoveryController {
   constructor(private readonly discoveryService: DiscoveryService) {}
 
-  @MessagePattern(DeviceTopics.DISCOVERY_SOFTWARE)
-  discoveryMessage(@RpcPayload() data: DiscoveryMessageDto){
-    this.discoveryService.discoveryMessage(data)
-    return this.discoveryService.checkUpdates(data)
-  }
-
   @EventPattern(DeviceTopicsEmit.DISCOVER_DEVICE_CONTEXT)
   discoveryDeviceContext(@RpcPayload() data: DiscoveryMessageDto){
     this.discoveryService.discoveryMessage(data)

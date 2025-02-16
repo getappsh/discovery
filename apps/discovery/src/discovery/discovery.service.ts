@@ -1,25 +1,21 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Not, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DiscoveryType, PlatformEntity, ReleaseEntity, UploadVersionEntity } from '@app/common/database/entities';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DiscoveryType, PlatformEntity, ReleaseEntity } from '@app/common/database/entities';
 import { ComponentStateDto, DiscoveryMessageDto, DiscoveryMessageV2Dto } from '@app/common/dto/discovery';
-import { OfferingTopics } from '@app/common/microservice-client/topics';
 import { MTlsStatusDto } from '@app/common/dto/device';
-import { ComponentDto } from '@app/common/dto/discovery';
-import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
 import { DeviceService } from '../device/device.service';
 import { DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
+import { ComponentV2Dto } from '@app/common/dto/upload';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
-export class DiscoveryService implements OnModuleInit {
+export class DiscoveryService {
   private readonly logger = new Logger(DiscoveryService.name);
 
   constructor(
-    @Inject(MicroserviceName.MICRO_DISCOVERY_SERVICE) private readonly discoveryMicroClient: MicroserviceClient,
     @InjectRepository(DiscoveryMessageEntity) private readonly discoveryMessageRepo: Repository<DiscoveryMessageEntity>,
-    @InjectRepository(UploadVersionEntity) private readonly uploadVersionRepo: Repository<UploadVersionEntity>,
     @InjectRepository(DeviceEntity) private readonly deviceRepo: Repository<DeviceEntity>,
     @InjectRepository(DeviceComponentEntity) private readonly deviceComponentRepo: Repository<DeviceComponentEntity>,
     @InjectRepository(PlatformEntity) private readonly platformRepo: Repository<PlatformEntity>,
@@ -138,7 +134,7 @@ export class DiscoveryService implements OnModuleInit {
 
 
   private async setCompsOnDevice(deviceId: string, compsCatalogId: string[]){
-    let comps = await this.uploadVersionRepo.find({ where: { catalogId: In(compsCatalogId) } })
+    let comps = await this.releaseRepo.find({ where: { catalogId: In(compsCatalogId) } })
 
     let deviceComps: DeviceComponentStateDto[] = []
 
@@ -169,10 +165,6 @@ export class DiscoveryService implements OnModuleInit {
     }
     this.logger.debug(`comps list to update or save ${deviceComps}`);
     await this.deviceService.updateDeviceSoftware(deviceComps);
-  }
-
-  checkUpdates(discoveryMessage: DiscoveryMessageDto) {
-    return this.discoveryMicroClient.send(OfferingTopics.CHECK_UPDATES, discoveryMessage)
   }
 
   async imPushDiscoveryDevices(devicesDiscovery: DeviceDiscoverDto[]): Promise<void> {
@@ -230,7 +222,8 @@ export class DiscoveryService implements OnModuleInit {
         .setParameter(date_key, obj.produceTime)
     }
     query.leftJoinAndSelect("d.components", "dc");
-    query.leftJoinAndSelect("dc.component", "c");
+    query.leftJoinAndSelect("dc.release", "r");
+    query.leftJoinAndSelect("r.project", "p");
 
     let res = await query.getMany();
     this.logger.log(`Found ${res.length} not updated devices`);
@@ -240,7 +233,7 @@ export class DiscoveryService implements OnModuleInit {
       let ddr = new DeviceDiscoverResDto();
       ddr.deviceId = device.ID;
       ddr.produceTime = device.lastUpdatedDate;
-      ddr.comps = device.components.map(dc => ComponentDto.fromUploadVersionEntity(dc.component));
+      ddr.comps = device.components.map(dc => ComponentV2Dto.fromEntity(dc.release));
 
       devicesDiscoverRes.push(ddr);
     }
@@ -261,10 +254,5 @@ export class DiscoveryService implements OnModuleInit {
       dm.mTlsStatus = mTlsStatus.status
     dm.discoveryType = DiscoveryType.MTLS
     this.discoveryMessageRepo.save(dm);
-  }
-
-  async onModuleInit() {
-    this.discoveryMicroClient.subscribeToResponseOf([OfferingTopics.CHECK_UPDATES]);
-    await this.discoveryMicroClient.connect()
   }
 }

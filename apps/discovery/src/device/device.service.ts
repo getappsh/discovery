@@ -29,7 +29,7 @@ export class DeviceService {
     @InjectRepository(MapEntity) private readonly mapRepo: Repository<MapEntity>,
     @InjectRepository(DeviceMapStateEntity) private readonly deviceMapRepo: Repository<DeviceMapStateEntity>,
     @InjectRepository(DeviceComponentEntity) private readonly deviceCompRepo: Repository<DeviceComponentEntity>,
-    @Inject(MicroserviceName.MICRO_DISCOVERY_SERVICE) private readonly discoveryMicroClient: MicroserviceClient,
+    @Inject(MicroserviceName.OFFERING_SERVICE) private readonly offeringClient: MicroserviceClient,
 
 
     private deviceRepoS: DeviceRepoService
@@ -501,7 +501,7 @@ export class DeviceService {
       return
     }
     this.logger.verbose(`send software installed event`);
-    await this.discoveryMicroClient.emit(OfferingTopicsEmit.DEVICE_SOFTWARE_EVENT, event);
+    await this.offeringClient.emit(OfferingTopicsEmit.DEVICE_SOFTWARE_EVENT, event);
   }
 
   async sendMapInstallEvent2Offering(event: DeviceMapStateDto) {
@@ -509,7 +509,7 @@ export class DeviceService {
       return
     }
     this.logger.verbose(`Send map installed event`);
-    await this.discoveryMicroClient.emit(OfferingTopicsEmit.DEVICE_MAP_EVENT, event);
+    await this.offeringClient.emit(OfferingTopicsEmit.DEVICE_MAP_EVENT, event);
   }
 
   async releaseChangedEvent(dto: ReleaseChangedEventDto) {
