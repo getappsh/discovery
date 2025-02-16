@@ -477,17 +477,17 @@ export class DeviceService {
 
       let queryBuilder = this.deviceCompRepo.createQueryBuilder("entity");
       queryBuilder.select("entity.device_ID")
-      deviceComps.forEach((obj, index) => {
+      deviceComps.forEach((obj: DeviceComponentEntity, index: number) => {
         queryBuilder.orWhere(
           'entity.device_ID = :id' + index + ' AND entity.release_catalog_id = :catalogId' + index,
-          { ['id' + index]: obj?.device?.ID, ['catalogId' + index]: obj.component?.catalogId },
+          { ['id' + index]: obj?.device?.ID, ['catalogId' + index]: obj.release?.catalogId },
         ).andWhere('entity.state != :state', { state: DeviceComponentStateEnum.OFFERING });
       });
       let ids = (await queryBuilder.getRawMany()).map(d => d.device_ID);
 
       let fdc = deviceComps.filter(d => !((d.state == DeviceComponentStateEnum.PUSH || d.state == DeviceComponentStateEnum.OFFERING) && ids.includes(d?.device?.ID)));
       if (fdc) {
-        this.logger.debug(`updated comps list to update or save ${fdc}`);
+        this.logger.debug(`Upsert comps lis${fdc}`);
 
         this.deviceCompRepo.upsert(fdc, ['device', 'release']).catch(err =>
           this.logger.error(`failed to update device component state: ${err}`)

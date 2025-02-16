@@ -132,7 +132,6 @@ export class DiscoveryService implements OnModuleInit {
       .filter(cs => comps.includes(cs.catalogId))
       .forEach(c => deviceComps.push(DeviceComponentStateDto.fromParent(c, deviceId)))
       
-    console.log(deviceComps)
     this.logger.debug(`comps list to update or save ${deviceComps}`);
     await this.deviceService.updateDeviceSoftware(deviceComps);
   }
