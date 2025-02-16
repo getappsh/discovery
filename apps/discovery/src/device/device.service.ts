@@ -2,7 +2,7 @@ import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity, OrgGroupEntity, OrgUIDEntity, ReleaseEntity, UploadVersionEntity } from '@app/common/database/entities';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity, OrgGroupEntity, OrgUIDEntity, ReleaseEntity, ReleaseStatusEnum, UploadVersionEntity } from '@app/common/database/entities';
 import { DeviceRegisterDto, DeviceContentResDto, DeviceMapDto, DevicesStatisticInfo, DeviceMapStateDto } from '@app/common/dto/device';
 import { MapDto } from '@app/common/dto/map';
 import { MapDevicesDto } from '@app/common/dto/map/dto/all-maps.dto';
@@ -11,7 +11,7 @@ import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-dev
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { DeviceSoftwareDto, DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
-import { UploadEventDto, UploadEventEnum } from '@app/common/dto/upload';
+import { ReleaseChangedEventDto } from '@app/common/dto/upload';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { OfferingTopicsEmit } from '@app/common/microservice-client/topics';
 import { Deprecated } from '@app/common/decorators';
@@ -512,13 +512,12 @@ export class DeviceService {
     await this.discoveryMicroClient.emit(OfferingTopicsEmit.DEVICE_MAP_EVENT, event);
   }
 
-  async componentEvent(compEvent: UploadEventDto) {
-    if (compEvent.event === UploadEventEnum.ERROR) {
-      this.logger.log(`Component event: ${compEvent.event}, catalogId ${compEvent.catalogId}`);
+  async releaseChangedEvent(dto: ReleaseChangedEventDto) {
+    this.logger.log(`Release event for catalogId : ${dto.catalogId}, event ${dto.event}`);
+    if (dto.event !== ReleaseStatusEnum.RELEASED) {
       this.logger.log(`Remove offering or push from DeviceSoftware state`);
-      this.deviceCompRepo.delete({ component: { catalogId: compEvent.catalogId }, state: In([DeviceComponentStateEnum.PUSH, DeviceComponentStateEnum.OFFERING]) });
+      this.deviceCompRepo.delete({ release: { catalogId: dto.catalogId }, state: In([DeviceComponentStateEnum.PUSH, DeviceComponentStateEnum.OFFERING])});
     }
   }
-
 }
 
