@@ -33,8 +33,8 @@ export class DiscoveryService {
     this.logger.debug("save device")
     await this.deviceRepo.save(device)
 
-    if (dto.discoveryType === DiscoveryType.GET_APP){      
-      await this.setCompsOnDeviceV2(device.ID, dto.softwareData.components)
+    if (dto.discoveryType === DiscoveryType.GET_APP && dto?.softwareData?.components){      
+      await this.setCompsOnDeviceV2(device.ID, dto?.softwareData?.components)
     }
 
     const dm = new DiscoveryMessageEntity()
