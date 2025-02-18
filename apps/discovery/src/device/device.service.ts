@@ -80,7 +80,7 @@ export class DeviceService {
     }
 
     let devices = await this.deviceRepo.find({
-      select: { components: { state: true, release: { catalogId: true, latest: true } }, orgUID: { group: { id: false } } },
+      select: { components: { state: true, release: { catalogId: true, /*latest: true*/ } }, orgUID: { group: { id: false } } },
       relations: { orgUID: { group: true }, components: { release: true } },
       where: groupsIntArray ? { orgUID: { group: { id: In(groupsIntArray) } } } : {},
     });
@@ -91,14 +91,14 @@ export class DeviceService {
       devices = devices.map(d => { d.components = d.components.filter(c => software.includes(c.release.catalogId)); return d })
     }
 
-    let updatedDvs = devices.map(dvc => {
-      if (dvc.components.length && software
-        ? dvc.components.some(comp => !(comp.state == DeviceComponentStateEnum.INSTALLED && comp.release.latest == true))
-        : dvc.components.some(comp => comp.state != DeviceComponentStateEnum.INSTALLED))
-        return { isUpdate: false, id: dvc.ID }
-      else return { isUpdate: true, id: dvc.ID }
-    })
-      .filter(d => d.isUpdate).map(d => d.id)
+    // let updatedDvs = devices.map(dvc => {
+    //   if (dvc.components.length && software
+    //     ? dvc.components.some(comp => !(comp.state == DeviceComponentStateEnum.INSTALLED && comp.release.latest == true))
+    //     : dvc.components.some(comp => comp.state != DeviceComponentStateEnum.INSTALLED))
+    //     return { isUpdate: false, id: dvc.ID }
+    //   else return { isUpdate: true, id: dvc.ID }
+    // })
+    //   .filter(d => d.isUpdate).map(d => d.id)
 
     let dvsOnUpdateProcess = devices.map(dvc => {
       if (dvc.components.length && dvc.components.some(comp => comp.state == DeviceComponentStateEnum.PUSH || comp.state == DeviceComponentStateEnum.DELIVERY || comp.state == DeviceComponentStateEnum.DEPLOY))
@@ -109,7 +109,8 @@ export class DeviceService {
 
     let info: DevicesStatisticInfo = {
       count,
-      updated: { sum: updatedDvs.length, devices: updatedDvs },
+      // updated: { sum: updatedDvs.length, devices: updatedDvs },
+      updated: { sum: 0, devices: [] },
       onUpdateProcess: { sum: dvsOnUpdateProcess.length, devices: dvsOnUpdateProcess },
       updateError: { sum: 0, devices: [] }
     }
