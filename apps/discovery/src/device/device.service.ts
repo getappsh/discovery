@@ -365,8 +365,8 @@ export class DeviceService {
       select: { components: {
         id: true, state: true, error: true,
         release: {
-          version: true, catalogId: true, releaseNotes: true,
-          status: true, createdAt: true, updatedAt: true,
+          version: true, catalogId: true, releaseNotes: true, latest: true,
+          status: true, createdAt: true, updatedAt: true, releasedAt: true, 
           project: {name: true, projectType: true, id: true}
         },
       }}
