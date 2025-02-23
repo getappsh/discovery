@@ -80,7 +80,7 @@ export class DeviceService {
     }
 
     let devices = await this.deviceRepo.find({
-      select: { components: { state: true, release: { catalogId: true, /*latest: true*/ } }, orgUID: { group: { id: false } } },
+      select: { components: { state: true, error: true, release: { catalogId: true, latest: true } }, orgUID: { group: { id: false } } },
       relations: { orgUID: { group: true }, components: { release: true } },
       where: groupsIntArray ? { orgUID: { group: { id: In(groupsIntArray) } } } : {},
     });
@@ -91,28 +91,30 @@ export class DeviceService {
       devices = devices.map(d => { d.components = d.components.filter(c => software.includes(c.release.catalogId)); return d })
     }
 
-    // let updatedDvs = devices.map(dvc => {
-    //   if (dvc.components.length && software
-    //     ? dvc.components.some(comp => !(comp.state == DeviceComponentStateEnum.INSTALLED && comp.release.latest == true))
-    //     : dvc.components.some(comp => comp.state != DeviceComponentStateEnum.INSTALLED))
-    //     return { isUpdate: false, id: dvc.ID }
-    //   else return { isUpdate: true, id: dvc.ID }
-    // })
-    //   .filter(d => d.isUpdate).map(d => d.id)
+    let updatedDvs = devices.map(dvc => {
+      if (dvc.components.length && software
+        ? dvc.components.some(comp => !(comp.state == DeviceComponentStateEnum.INSTALLED && comp.release.latest == true))
+        : dvc.components.some(comp => comp.state != DeviceComponentStateEnum.INSTALLED))
+        return { isUpdate: false, id: dvc.ID }
+      else return { isUpdate: true, id: dvc.ID }
+    })
+      .filter(d => d.isUpdate).map(d => d.id)
 
-    let dvsOnUpdateProcess = devices.map(dvc => {
-      if (dvc.components.length && dvc.components.some(comp => comp.state == DeviceComponentStateEnum.PUSH || comp.state == DeviceComponentStateEnum.DELIVERY || comp.state == DeviceComponentStateEnum.DEPLOY))
-        return { onUpdateProc: true, id: dvc.ID }
+    const onUpdated = devices.map(dvc => {
+      const compOnUpdates = dvc?.components?.filter(comp => comp.state == DeviceComponentStateEnum.PUSH || comp.state == DeviceComponentStateEnum.DELIVERY || comp.state == DeviceComponentStateEnum.DEPLOY)
+      if (compOnUpdates?.length)
+        return { onUpdateProc: true, id: dvc.ID, isError: compOnUpdates.some(comp => comp.error !== null) }
       else return { onUpdateProc: false, id: dvc.ID }
-    }).filter(d => d.onUpdateProc).map(d => d.id)
+    })
 
+    const dvsOnUpdateProcess = onUpdated.filter(d => d.onUpdateProc).map(d => d.id)
+    const dvsOnUpdateErrorProcess = onUpdated.filter(d => d.onUpdateProc && d.isError).map(d => d.id)
 
     let info: DevicesStatisticInfo = {
       count,
-      // updated: { sum: updatedDvs.length, devices: updatedDvs },
-      updated: { sum: 0, devices: [] },
+      updated: { sum: updatedDvs.length, devices: updatedDvs },
       onUpdateProcess: { sum: dvsOnUpdateProcess.length, devices: dvsOnUpdateProcess },
-      updateError: { sum: 0, devices: [] }
+      updateError: { sum: dvsOnUpdateErrorProcess.length, devices: dvsOnUpdateErrorProcess }
     }
 
     this.logger.log(`Device info ${JSON.stringify(info)}`);
