@@ -30,6 +30,7 @@ import { JobsEntity } from '@app/common/database/entities/map-updatesCronJob';
     MicroserviceModule.register({
       name: MicroserviceName.OFFERING_SERVICE,
       type: MicroserviceType.OFFERING,
+      id: "discovery"
     }),
     DatabaseModule,
     TypeOrmModule.forFeature([
