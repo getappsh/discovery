@@ -100,15 +100,15 @@ export class DeviceService {
     })
       .filter(d => d.isUpdate).map(d => d.id)
 
-    const onUpdated = devices.map(dvc => {
+    const onUpdate = devices.map(dvc => {
       const compOnUpdates = dvc?.components?.filter(comp => comp.state == DeviceComponentStateEnum.PUSH || comp.state == DeviceComponentStateEnum.DELIVERY || comp.state == DeviceComponentStateEnum.DEPLOY)
       if (compOnUpdates?.length)
         return { onUpdateProc: true, id: dvc.ID, isError: compOnUpdates.some(comp => comp.error !== null) }
       else return { onUpdateProc: false, id: dvc.ID }
-    })
+    }).filter(d => d.onUpdateProc)
 
-    const dvsOnUpdateProcess = onUpdated.filter(d => d.onUpdateProc).map(d => d.id)
-    const dvsOnUpdateErrorProcess = onUpdated.filter(d => d.onUpdateProc && d.isError).map(d => d.id)
+    const dvsOnUpdateProcess = onUpdate.map(d => d.id)
+    const dvsOnUpdateErrorProcess = onUpdate.filter(d => d.isError).map(d => d.id)
 
     let info: DevicesStatisticInfo = {
       count,
@@ -135,7 +135,7 @@ export class DeviceService {
     }
 
     let devices = await this.deviceRepo.find({
-      select: { maps: { state: true }, orgUID: { group: { id: false } } },
+      select: { maps: { state: true, error: true }, orgUID: { group: { id: false } } },
       relations: { orgUID: { group: true }, maps: { map: true } },
       where: groupsIntArray ? { orgUID: { group: { id: In(groupsIntArray) } } } : {},
     });
@@ -153,18 +153,22 @@ export class DeviceService {
     })
       .filter(d => d.isUpdate).map(d => d.id)
 
-    let dvsOnUpdateProcess = devices.map(dvm => {
-      if (dvm.maps.some(map => map.state == DeviceMapStateEnum.PUSH || map.state == DeviceMapStateEnum.DELIVERY || map.state == DeviceMapStateEnum.IMPORT))
-        return { onUpdateProc: true, id: dvm.ID }
+    let onUpdate = devices.map(dvm => {
+      const mapOnUpdates = dvm?.maps?.filter(map => map.state == DeviceMapStateEnum.PUSH || map.state == DeviceMapStateEnum.DELIVERY || map.state == DeviceMapStateEnum.IMPORT)
+      if (mapOnUpdates?.length)
+        return { onUpdateProc: true, id: dvm.ID, isError: mapOnUpdates.some(map => map.error !== null) }
       else return { onUpdateProc: false, id: dvm.ID }
-    }).filter(d => d.onUpdateProc).map(d => d.id)
+    }).filter(d => d.onUpdateProc)
 
+
+    const dvsOnUpdateProcess = onUpdate.map(d => d.id)
+    const dvsOnUpdateErrorProcess = onUpdate.filter(d => d.isError).map(d => d.id)
 
     let info: DevicesStatisticInfo = {
       count,
       updated: { sum: updatedDvs.length, devices: updatedDvs },
       onUpdateProcess: { sum: dvsOnUpdateProcess.length, devices: dvsOnUpdateProcess },
-      updateError: { sum: 0, devices: [] }
+      updateError: { sum: dvsOnUpdateErrorProcess.length, devices: dvsOnUpdateErrorProcess }
     }
 
     this.logger.log(`Device info ${JSON.stringify(info)}`);
@@ -363,7 +367,7 @@ export class DeviceService {
       where: { ID: deviceId }, 
       relations: { components: { release: { project: true } }},
       select: { components: {
-        id: true, state: true, error: true,
+        id: true, state: true, error: true, downloadedAt: true, deployedAt: true,
         release: {
           version: true, catalogId: true, releaseNotes: true, latest: true,
           status: true, createdAt: true, updatedAt: true, releasedAt: true, 
@@ -403,6 +407,9 @@ export class DeviceService {
       dm.map = { catalogId: s.catalogId } as MapEntity;
       dm.device = { ID: s.deviceId } as DeviceEntity;
       dm.state = s.state;
+      dm.error = s.error ?? null
+      dm.downloadedAt = s.downloadedAt
+      dm.deployedAt = s.deployedAt
 
       deviceMaps.push(dm);
     }
@@ -466,6 +473,8 @@ export class DeviceService {
       dc.device = { ID: s.deviceId } as DeviceEntity;
       dc.state = s.state;
       dc.error = s.error ?? null
+      dc.downloadedAt = s.downloadedAt
+      dc.deployedAt = s.deployedAt
 
       deviceComps.push(dc);
     }
