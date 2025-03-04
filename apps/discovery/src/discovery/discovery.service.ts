@@ -103,7 +103,8 @@ export class DiscoveryService {
       select: {device: {ID: true}, release: {catalogId: true}},
       where: {
         device: {ID: deviceId},
-        release: {catalogId: Not(In(compsCatalogId))}
+        release: {catalogId: Not(In(compsCatalogId))},
+        state: Not(In([DeviceComponentStateEnum.PUSH, DeviceComponentStateEnum.OFFERING]))
       }, 
       relations: {release: true, device: true}});
       
@@ -122,7 +123,6 @@ export class DiscoveryService {
     .find({ where: { catalogId: In(compsCatalogId)}, select: {catalogId: true} })
     .then(comps => comps.map(c => c.catalogId));
 
-    console.log({comps})
 
     compsState
       .filter(cs => comps.includes(cs.catalogId))
