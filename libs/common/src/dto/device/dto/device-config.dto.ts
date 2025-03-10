@@ -129,8 +129,6 @@ export class WindowsConfigDto extends BaseConfigDto {
 
   @ApiProperty({ required: false, type: String, isArray: true })
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
   @Expose()
   getAppServerUrls: string[] | { url: string, delete: boolean };
 
