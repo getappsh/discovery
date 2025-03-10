@@ -47,28 +47,42 @@ export class DeviceConfigService implements OnApplicationBootstrap {
       eConfig.group = config.group
     }
 
-    if (config.group === "windows" && 'layers' in config) {
-      const layersConfig = (config as WindowsConfigDto).layers
-      delete config.layers
-      if (!(eConfig.data as WindowsConfigDto).layers) {
-        (eConfig.data as WindowsConfigDto).layers = layersConfig.filter((layer, index, self) =>
-          !layer.delete && index === self.findIndex(l => l.layerName === layer.layerName)
-        )
-      } else {
-        layersConfig.forEach(layer => {
-          const index = (eConfig.data as WindowsConfigDto).layers.findIndex(l => l.layerName === layer.layerName)
-          if (index === -1) {
-            if (!layer.delete) {
-              (eConfig.data as WindowsConfigDto).layers.push(layer);
-            }
-          } else {
-            if (!layer.delete) {
-              (eConfig.data as WindowsConfigDto).layers[index] = layer
+    if (config.group === "windows") {
+      if ('layers' in config) {
+        const layersConfig = (config as WindowsConfigDto).layers
+        delete config.layers
+        if (!(eConfig.data as WindowsConfigDto).layers) {
+          (eConfig.data as WindowsConfigDto).layers = layersConfig.filter((layer, index, self) =>
+            !layer.delete && index === self.findIndex(l => l.layerName === layer.layerName)
+          )
+        } else {
+          layersConfig.forEach(layer => {
+            const index = (eConfig.data as WindowsConfigDto).layers.findIndex(l => l.layerName === layer.layerName)
+            if (index === -1) {
+              if (!layer.delete) {
+                (eConfig.data as WindowsConfigDto).layers.push(layer);
+              }
             } else {
-              !["אורטופוטו", "מפת שליטה"].includes(layer.layerName) && (eConfig.data as WindowsConfigDto).layers.splice(index, 1)
+              if (!layer.delete) {
+                (eConfig.data as WindowsConfigDto).layers[index] = layer
+              } else {
+                !["אורטופוטו", "מפת שליטה"].includes(layer.layerName) && (eConfig.data as WindowsConfigDto).layers.splice(index, 1)
+              }
             }
-          }
-        })
+          })
+        }
+      }
+
+      if ('getAppServerUrls' in config) {
+        const setUrl = new Set((eConfig.data as WindowsConfigDto).getAppServerUrls as string[])
+        const urlsConfig = (config as WindowsConfigDto).getAppServerUrls
+        delete config.getAppServerUrls
+        if (Array.isArray(urlsConfig)) {
+          urlsConfig.forEach(setUrl.add, setUrl);
+        } else if (urlsConfig?.url) {
+          urlsConfig.delete ? setUrl.delete(urlsConfig.url) : setUrl.add(urlsConfig.url)
+        }
+        (eConfig.data as WindowsConfigDto).getAppServerUrls = Array.from(setUrl)
       }
     }
 
