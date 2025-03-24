@@ -143,7 +143,7 @@ export class WindowsConfigDto extends BaseConfigDto {
   @IsOptional()
   @IsInt()
   @Expose()
-  queryStatusInternalSec: number
+  queryStatusIntervalSec: number
 
   
   @ApiProperty({required: false })
