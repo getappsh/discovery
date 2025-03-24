@@ -3,7 +3,7 @@ import { DeviceConfigEntity } from "@app/common/database/entities/device-config.
 import { BadRequestException, Injectable, PipeTransform } from "@nestjs/common";
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose, plainToClass, Type } from "class-transformer";
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, validate, ValidateNested, ValidationError } from "class-validator";
+import { IsArray, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, validate, ValidateNested, ValidationError } from "class-validator";
 import { LayersConfigDto } from "./layer-config.dto";
 
 
@@ -137,6 +137,34 @@ export class WindowsConfigDto extends BaseConfigDto {
   @IsString()
   @Expose()
   mapsStoragePath: string
+
+
+  @ApiProperty({ required: false, type: 'integer', description: 'How many seconds to wait between checking the import and prepare status',  })
+  @IsOptional()
+  @IsInt()
+  @Expose()
+  queryStatusInternalSec: number
+
+  
+  @ApiProperty({required: false })
+  @IsOptional()
+  @IsString()
+  @Expose()
+  networkAvailabilityUrl: string
+
+  @ApiProperty({required: false, type: 'integer'})
+  @IsOptional()
+  @IsInt()
+  @Expose()
+  mapProductsCacheDurationMin: number
+
+
+  @ApiProperty({required: false,  type: 'integer'})
+  @IsOptional()
+  @IsInt()
+  @Expose()
+  mapInventoryMaxSizeMB: number
+
 
   constructor() {
     super();
