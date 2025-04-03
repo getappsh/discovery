@@ -66,7 +66,9 @@ export class DeviceConfigService implements OnApplicationBootstrap {
               if (!layer.delete) {
                 (eConfig.data as WindowsConfigDto).layers[index] = layer
               } else {
-                !["אורטופוטו", "מפת שליטה"].includes(layer.layerName) && (eConfig.data as WindowsConfigDto).layers.splice(index, 1)
+                !["אורטופוטו", "מפת שליטה"].includes(layer.layerName)
+                  ? (eConfig.data as WindowsConfigDto).layers.splice(index, 1)
+                  : (eConfig.data as WindowsConfigDto).layers.splice(index, 1, { layerName: layer.layerName })
               }
             }
           })
