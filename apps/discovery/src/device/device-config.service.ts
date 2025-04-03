@@ -78,7 +78,9 @@ export class DeviceConfigService implements OnApplicationBootstrap {
         const urlsConfig = (config as WindowsConfigDto).getAppServerUrls
         delete config.getAppServerUrls
         if (Array.isArray(urlsConfig)) {
-          urlsConfig.forEach(setUrl.add, setUrl);
+          urlsConfig.every(url => typeof url === 'string')
+            ? urlsConfig.forEach(setUrl.add, setUrl)
+            : this.logger.error(`Invalid parameter in getAppServerUrls: ${urlsConfig}`);
         } else if (urlsConfig?.url) {
           urlsConfig.delete ? setUrl.delete(urlsConfig.url) : setUrl.add(urlsConfig.url)
         }
