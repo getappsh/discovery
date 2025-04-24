@@ -156,7 +156,21 @@ export class WindowsConfigDto extends BaseConfigDto {
   @IsOptional()
   @IsInt()
   @Expose()
-  mapProductsCacheDurationMin: number
+  periodicDiscoveryIntervalMins: number
+
+
+  @ApiProperty({required: false, type: 'integer'})
+  @IsOptional()
+  @IsInt()
+  @Expose()
+  networkStatusIntervalMins: number
+
+
+  @ApiProperty({ required: false, type: 'integer' , description: ""})
+  @IsOptional()
+  @IsNumber()
+  @Expose()
+  maxInventoryMissedIntervalHours: number
 
 
   @ApiProperty({required: false,  type: 'integer'})
