@@ -12,8 +12,8 @@ import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-dev
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { AndroidConfigDto, WindowsConfigDto } from '@app/common/dto/device/dto/device-config.dto';
 import { DeviceConfigService } from './device-config.service';
-import { DeviceSoftwareDto, DeviceSoftwareStateDto } from '@app/common/dto/device/dto/device-software.dto';
-import { UploadEventDto } from '@app/common/dto/upload';
+import { DeviceSoftwareDto, DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
+import { ReleaseChangedEventDto } from '@app/common/dto/upload';
 import { Deprecated } from '@app/common/decorators';
 import { RpcPayload } from '@app/common/microservice-client';
 import * as fs from 'fs';
@@ -92,14 +92,13 @@ export class DeviceController {
   }
 
   @EventPattern(DeviceTopicsEmit.UPDATE_DEVICE_SOFTWARE_STATE)
-  updateDeviceSoftware(@RpcPayload() state: DeviceSoftwareStateDto | DeviceSoftwareStateDto[]) {
+  updateDeviceSoftware(@RpcPayload() state: DeviceComponentStateDto | DeviceComponentStateDto[]) {
     this.deviceService.updateDeviceSoftware(state)
   }
 
-  @EventPattern(DeviceTopicsEmit.COMPONENT_EVENT)
-  componentEvent(@RpcPayload() compEvent: UploadEventDto) {
-    // Currently getting only events of error
-    this.deviceService.componentEvent(compEvent);
+  @EventPattern(DeviceTopicsEmit.RELEASE_CHANGED_EVENT)
+  releaseChangedEvent(@RpcPayload() event: ReleaseChangedEventDto) {
+    this.deviceService.releaseChangedEvent(event);
   }
 
   @MessagePattern(DeviceTopics.GET_DEVICE_CONFIG)

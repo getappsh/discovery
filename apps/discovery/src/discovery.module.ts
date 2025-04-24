@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
-import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity } from '@app/common/database/entities';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -28,11 +28,16 @@ import { JobsEntity } from '@app/common/database/entities/map-updatesCronJob';
     LoggerModule.forRoot({httpCls: false, jsonLogger: process.env.LOGGER_FORMAT === 'JSON', name: "Discovery"}),
     ApmModule,
     MicroserviceModule.register({
-      name: MicroserviceName.MICRO_DISCOVERY_SERVICE,
-      type: MicroserviceType.MICRO_DISCOVERY,
+      name: MicroserviceName.OFFERING_SERVICE,
+      type: MicroserviceType.OFFERING,
+      id: "discovery"
     }),
     DatabaseModule,
-    TypeOrmModule.forFeature([DiscoveryMessageEntity, UploadVersionEntity, DeviceEntity, MapEntity, OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, DeviceConfigEntity, JobsEntity, DeviceComponentEntity]),
+    TypeOrmModule.forFeature([
+      DiscoveryMessageEntity, DeviceEntity, MapEntity,
+       OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity,
+        DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity
+      ]),
     DeviceClientRepoModule,
     MailModule
   ],
