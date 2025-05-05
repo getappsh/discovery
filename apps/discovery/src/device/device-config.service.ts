@@ -52,11 +52,11 @@ export class DeviceConfigService implements OnApplicationBootstrap {
         const layersConfig = (config as WindowsConfigDto).layers
         delete config.layers
         if (!(eConfig.data as WindowsConfigDto).layers) {
-          (eConfig.data as WindowsConfigDto).layers = layersConfig.filter((layer, index, self) =>
+          (eConfig.data as WindowsConfigDto).layers = layersConfig?.filter((layer, index, self) =>
             !layer.delete && index === self.findIndex(l => l.layerName === layer.layerName)
           )
         } else {
-          layersConfig.forEach(layer => {
+          layersConfig?.forEach(layer => {
             const index = (eConfig.data as WindowsConfigDto).layers.findIndex(l => l.layerName === layer.layerName)
             if (index === -1) {
               if (!layer.delete) {
