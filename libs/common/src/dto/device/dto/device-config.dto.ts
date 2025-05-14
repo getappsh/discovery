@@ -139,45 +139,55 @@ export class WindowsConfigDto extends BaseConfigDto {
   mapsStoragePath: string
 
 
-  @ApiProperty({ required: false, type: 'integer', description: 'How many seconds to wait between checking the import and prepare status',  })
+  @ApiProperty({ required: false, type: 'integer', description: 'How many seconds to wait between checking the import and prepare status', })
   @IsOptional()
   @IsInt()
   @Expose()
   queryStatusIntervalSec: number
 
-  
-  @ApiProperty({required: false })
+
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   @Expose()
   networkAvailabilityUrl: string
 
-  @ApiProperty({required: false, type: 'integer'})
+  @ApiProperty({ required: false, type: 'integer' })
   @IsOptional()
   @IsInt()
   @Expose()
   periodicDiscoveryIntervalMins: number
 
 
-  @ApiProperty({required: false, type: 'integer'})
+  @ApiProperty({ required: false, type: 'integer', description: 'Interval for background network status checks in minutes. Used when maps are in the import process.' })
   @IsOptional()
   @IsInt()
   @Expose()
   networkStatusIntervalMins: number
 
 
-  @ApiProperty({ required: false, type: 'integer' , description: ""})
+  @ApiProperty({ required: false, type: 'integer', description: 'Maximum allowed interval (in hours) for inventory updates before triggering an error.' })
   @IsOptional()
   @IsNumber()
   @Expose()
   maxInventoryMissedIntervalHours: number
 
 
-  @ApiProperty({required: false,  type: 'integer'})
+  @ApiProperty({ required: false, type: 'integer' })
   @IsOptional()
   @IsInt()
   @Expose()
   mapInventoryMaxSizeMB: number
+
+  @ApiProperty({
+    required: false,
+    type: 'integer',
+    description: 'Maximum time (in seconds) to wait for a response when checking if a TCP connection is valid. If no response is received within this time, an error is returned.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Expose()
+  tcpStreamTimeoutSec: number;
 
 
   constructor() {
