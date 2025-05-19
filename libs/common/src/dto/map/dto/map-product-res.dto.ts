@@ -24,31 +24,31 @@ export class MapProductResDto {
   @ApiProperty()
   productId: string;
 
-  // @IsString()
-  // @IsNotEmpty()
-  // @ApiProperty()
-  // catalogId: string;
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty()
+  catalogId: string;
 
   // @IsString()
   // @IsOptional()
   // @ApiProperty({ required: false })
   // sourceName: string;
-  
+
   // @IsString()
   // @IsOptional()
   // @ApiProperty({ required: false })
   // sourceId: string;
-  
+
   // @IsString()
   // @IsOptional()
   // @ApiProperty({ required: false })
   // sensors: string;
-  
+
   @IsString()
   @IsOptional()
   @ApiProperty({ required: false })
   countries: string;
-  
+
   @IsString()
   @IsOptional()
   @ApiProperty({ required: false })
@@ -58,22 +58,22 @@ export class MapProductResDto {
   // @IsOptional()
   // @ApiProperty({ required: false })
   // description: string;
-  
+
   // @IsString()
   // @IsOptional()
   // @ApiProperty({ required: false })
   // horizontalAccuracyCe90: number;
-  
+
   // @IsString()
   // @IsOptional()
   // @ApiProperty({ required: false })
   // sourceResolutionMeter: number;
-  
+
   @IsString()
   @IsOptional()
   @ApiProperty({ required: false })
   resolutionMeter: number;
-  
+
   @IsString()
   @IsOptional()
   @ApiProperty({ required: false })
@@ -142,6 +142,7 @@ export class MapProductResDto {
   static fromRecordsRes(records: MCRasterRecordDto): MapProductResDto {
     const product = new MapProductResDto()
     product.id = records["mc:id"]
+    product.catalogId = records["mc:id"]
     product.productId = records["mc:productId"]
     product.productName = records["mc:productName"]
     product.productVersion = Number(records["mc:productVersion"])
@@ -159,10 +160,10 @@ export class MapProductResDto {
     return product
   }
 
-  static fromRecordsResPolygonParts(records: Feature<Polygon,PropertiesPolygonPartsDto>): MapProductResDto {
+  static fromRecordsResPolygonParts(records: Feature<Polygon, PropertiesPolygonPartsDto>): MapProductResDto {
     const product = new MapProductResDto()
-    product.id = records.properties.catalogId
-    // product.catalogId = records.properties.catalogId
+    product.id = records.properties.id
+    product.catalogId = records.properties.catalogId
     product.productId = records.properties.productId
     product.productName = process.env.SEQUENTIAL_PRODUCT_ID?.split("-")[0]
     product.productVersion = Number(records.properties.productVersion)
@@ -202,6 +203,7 @@ export class MapProductResDto {
   static fromProductEntity(pE: ProductEntity): MapProductResDto {
     const product = new MapProductResDto()
     product.id = pE.id
+    product.catalogId = pE.catalogId
     product.productId = pE.productId
     product.productName = pE.productName
     product.productVersion = pE.productVersion

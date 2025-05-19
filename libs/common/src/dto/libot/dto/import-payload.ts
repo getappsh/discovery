@@ -49,7 +49,7 @@ export class ImportPayload {
   static fromImportAttrs(attrs: ImportAttributes): ImportPayload {
     const importPayload = new ImportPayload()
 
-    importPayload.catalogRecordID = attrs.product.id
+    importPayload.catalogRecordID = attrs.product.catalogId
     importPayload.webhook = [
       {
         events: ["TASK_COMPLETED", "TASK_FAILED"],
