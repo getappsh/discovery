@@ -189,6 +189,26 @@ export class WindowsConfigDto extends BaseConfigDto {
   @Expose()
   tcpStreamTimeoutSec: number;
 
+  @ApiProperty({
+    required: false,
+    type: 'integer',
+    description: 'Maximum retention time for Matomo data in hours. Data older than this will be cleaned up.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Expose()
+  matomoMaxRetentionHour: number;
+
+  @ApiProperty({
+    required: false,
+    type: 'integer',
+    description: 'Maximum buffer size in megabytes. If the buffer limit is reached, the oldest entries will be discarded to free up space.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Expose()
+  matomoMaxBufferSizeMB: number;
+
 
   constructor() {
     super();
