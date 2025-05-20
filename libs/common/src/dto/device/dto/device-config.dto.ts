@@ -3,7 +3,7 @@ import { DeviceConfigEntity } from "@app/common/database/entities/device-config.
 import { BadRequestException, Injectable, PipeTransform } from "@nestjs/common";
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose, plainToClass, Type } from "class-transformer";
-import { IsArray, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, validate, ValidateNested, ValidationError } from "class-validator";
+import { IsArray, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, MinLength, validate, ValidateNested, ValidationError } from "class-validator";
 import { LayersConfigDto } from "./layer-config.dto";
 
 
@@ -209,6 +209,14 @@ export class WindowsConfigDto extends BaseConfigDto {
   @Expose()
   matomoMaxBufferSizeMB: number;
 
+
+  @ApiProperty({ required: false, description: 'The password that allows a technician to modify configurations directly on the device. Must be between 4 and 20 characters.', minLength: 4, maxLength: 20 })
+  @MinLength(4)
+  @MaxLength(20)
+  @IsOptional()
+  @IsString()
+  @Expose()
+  technicianPassword: string
 
   constructor() {
     super();
