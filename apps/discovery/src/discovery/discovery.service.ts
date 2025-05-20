@@ -24,7 +24,25 @@ export class DiscoveryService {
   ) {
   }
 
-  async discoveryDeviceContext(dto: DiscoveryMessageV2Dto){
+  async getDevicePerson(deviceId: string): Promise<Pick<DiscoveryMessageEntity, 'personalDevice'> & { device: Pick<DeviceEntity, 'ID'> }> {
+    this.logger.log(`Get device personal info`)
+    try {
+      const dvcPrs = await this.discoveryMessageRepo
+        .createQueryBuilder('msg')
+        .leftJoin('msg.device', 'device')
+        .where('device.ID = :deviceId', { deviceId })
+        .orderBy('msg.lastUpdatedDate', 'DESC')
+        .select(['msg.personalDevice', 'device.ID'])
+        .getOne();
+      this.logger.debug(`Device personal res for deviceId - ${deviceId} : ${JSON.stringify(dvcPrs.personalDevice)}`)
+      return dvcPrs
+    } catch (err: any) {
+      this.logger.error(`Err when get personal device for deviceId ${deviceId}, Err: ${err}`)
+    }
+
+  }
+
+  async discoveryDeviceContext(dto: DiscoveryMessageV2Dto) {
     let device = this.deviceRepo.create(dto.general.physicalDevice);
     device.lastConnectionDate = new Date();
     device.formations = dto?.softwareData?.formations;
@@ -33,7 +51,7 @@ export class DiscoveryService {
     this.logger.debug("save device")
     await this.deviceRepo.save(device)
 
-    if (dto.discoveryType === DiscoveryType.GET_APP && dto?.softwareData?.components){      
+    if (dto.discoveryType === DiscoveryType.GET_APP && dto?.softwareData?.components) {
       await this.setCompsOnDeviceV2(device.ID, dto?.softwareData?.components)
     }
 
@@ -56,7 +74,7 @@ export class DiscoveryService {
     if (platforms.length === 0) {
       return [];
     }
-    return this.platformRepo.save(platforms.map(platform => {return { name: platform }}));
+    return this.platformRepo.save(platforms.map(platform => { return { name: platform } }));
   }
 
   async discoveryMessage(discovery: DiscoveryMessageDto) {
@@ -64,9 +82,9 @@ export class DiscoveryService {
     this.logger.debug("save device")
     await this.deviceRepo.save(device)
 
-    if (discovery.discoveryType === DiscoveryType.GET_APP){
+    if (discovery.discoveryType === DiscoveryType.GET_APP) {
       let compsCatalogId = Array.from(new Set(discovery.softwareData.platform.components.map(comp => comp.catalogId)))
-      
+
       await this.setCompsOnDevice(device.ID, compsCatalogId)
     }
 
@@ -92,7 +110,7 @@ export class DiscoveryService {
 
   }
 
-  private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]){
+  private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]) {
     const compsCatalogId = Array.from(new Set(compsState.map(comp => comp.catalogId)));
 
     let deviceComps: DeviceComponentStateDto[] = []
@@ -100,14 +118,15 @@ export class DiscoveryService {
     // Find the registered components of the device, and set as uninstall if they are not in the list
     // TODO: maybe to delete them here
     let uninstalledComps = await this.deviceComponentRepo.find({
-      select: {device: {ID: true}, release: {catalogId: true}},
+      select: { device: { ID: true }, release: { catalogId: true } },
       where: {
-        device: {ID: deviceId},
-        release: {catalogId: Not(In(compsCatalogId))},
+        device: { ID: deviceId },
+        release: { catalogId: Not(In(compsCatalogId)) },
         state: Not(In([DeviceComponentStateEnum.PUSH, DeviceComponentStateEnum.OFFERING]))
-      }, 
-      relations: {release: true, device: true}});
-      
+      },
+      relations: { release: true, device: true }
+    });
+
 
     this.logger.debug(` comps ${uninstalledComps.map(c => c.release.catalogId)}`);
     uninstalledComps.forEach(c => {
@@ -120,47 +139,48 @@ export class DiscoveryService {
 
 
     const comps = await this.releaseRepo
-    .find({ where: { catalogId: In(compsCatalogId)}, select: {catalogId: true} })
-    .then(comps => comps.map(c => c.catalogId));
+      .find({ where: { catalogId: In(compsCatalogId) }, select: { catalogId: true } })
+      .then(comps => comps.map(c => c.catalogId));
 
 
     compsState
       .filter(cs => comps.includes(cs.catalogId))
       .forEach(c => deviceComps.push(DeviceComponentStateDto.fromParent(c, deviceId)))
-      
+
     this.logger.debug(`comps list to update or save ${deviceComps}`);
     await this.deviceService.updateDeviceSoftware(deviceComps);
   }
 
 
-  private async setCompsOnDevice(deviceId: string, compsCatalogId: string[]){
+  private async setCompsOnDevice(deviceId: string, compsCatalogId: string[]) {
     let comps = await this.releaseRepo.find({ where: { catalogId: In(compsCatalogId) } })
 
     let deviceComps: DeviceComponentStateDto[] = []
 
     let currentInstalledComps = await this.deviceComponentRepo.find({
       where: {
-        state: In([DeviceComponentStateEnum.INSTALLED, DeviceComponentStateEnum.UNINSTALLED]), 
-        device: {ID: deviceId}
-      }, 
-      relations: {release: true, device: true}});
+        state: In([DeviceComponentStateEnum.INSTALLED, DeviceComponentStateEnum.UNINSTALLED]),
+        device: { ID: deviceId }
+      },
+      relations: { release: true, device: true }
+    });
 
     this.logger.debug(`get all current installed comps ${currentInstalledComps.map(c => c.release.catalogId)}`);
     currentInstalledComps.forEach(c => {
-      if (!compsCatalogId.includes(c.release.catalogId)){
-          let dss = new DeviceComponentStateDto()
-          dss.catalogId = c.release.catalogId;
-          dss.deviceId = c.device.ID;
-          dss.state = DeviceComponentStateEnum.UNINSTALLED;
-          deviceComps.push(dss);
+      if (!compsCatalogId.includes(c.release.catalogId)) {
+        let dss = new DeviceComponentStateDto()
+        dss.catalogId = c.release.catalogId;
+        dss.deviceId = c.device.ID;
+        dss.state = DeviceComponentStateEnum.UNINSTALLED;
+        deviceComps.push(dss);
       }
     })
-    for (let comp of comps){
+    for (let comp of comps) {
       let dss = new DeviceComponentStateDto()
       dss.catalogId = comp.catalogId;
       dss.deviceId = deviceId;
       dss.state = DeviceComponentStateEnum.INSTALLED;
-      
+
       deviceComps.push(dss);
     }
     this.logger.debug(`comps list to update or save ${deviceComps}`);
@@ -186,14 +206,14 @@ export class DiscoveryService {
         matchingDevice = await this.deviceRepo.save(device);
 
         await this.setCompsOnDevice(dvcDsc.deviceId, dvcDsc.comps);
-        
+
         matchingDevice.lastUpdatedDate = dvcDsc.produceTime;
         this.deviceRepo.save(matchingDevice).catch(err =>
           this.logger.error(`Unable to save comp to device, maybe because of component doesn't exist. error message: ${err}`));
 
       } else if (matchingDevice.lastUpdatedDate < new Date(dvcDsc.produceTime)) {
         this.logger.debug(`Update device ID: ${dvcDsc.deviceId}.`);
-        
+
         await this.setCompsOnDevice(dvcDsc.deviceId, dvcDsc.comps);
 
         matchingDevice.lastUpdatedDate = dvcDsc.produceTime;
