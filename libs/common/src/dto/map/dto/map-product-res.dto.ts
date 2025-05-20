@@ -26,7 +26,7 @@ export class MapProductResDto {
 
   @IsString()
   @IsNotEmpty()
-  @ApiProperty()
+  @ApiProperty({ required: false })
   catalogId: string;
 
   // @IsString()
@@ -74,10 +74,10 @@ export class MapProductResDto {
   @ApiProperty({ required: false })
   resolutionMeter: number;
 
-  @IsString()
-  @IsOptional()
-  @ApiProperty({ required: false })
-  resolutionDegree: number;
+  // @IsString()
+  // @IsOptional()
+  // @ApiProperty({ required: false })
+  // resolutionDegree: number;
 
   @IsString()
   @IsOptional()

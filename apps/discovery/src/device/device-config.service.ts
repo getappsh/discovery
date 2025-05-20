@@ -4,6 +4,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { IsNull, Not, Repository } from "typeorm";
 import { AndroidConfigDto, fromConfigEntity, TargetStoragePolicy, WindowsConfigDto } from '@app/common/dto/device/dto/device-config.dto';
 import { JobsEntity } from "@app/common/database/entities/map-updatesCronJob";
+import * as bcrypt from 'bcrypt';
 
 
 @Injectable()
@@ -29,8 +30,20 @@ export class DeviceConfigService implements OnApplicationBootstrap {
 
   }
 
+  async hashPassword(password: string): Promise<string> {
+    const saltRounds = 10;
+    return await bcrypt.hash(password, saltRounds);
+  }
+
   async setDeviceConfig(config: WindowsConfigDto | AndroidConfigDto) {
     delete config['headers']
+
+    let technicianPassword = (config as WindowsConfigDto)?.technicianPassword;
+    if (technicianPassword){
+      const hashedPassword = await this.hashPassword(technicianPassword)
+      this.logger.debug(`Hash device config technicianPassword: ${hashedPassword}`)
+      config['technicianPassword'] = hashedPassword
+    }
 
     let eConfig = await this.setConfigValues(config)
 
@@ -40,6 +53,7 @@ export class DeviceConfigService implements OnApplicationBootstrap {
 
   async setConfigValues(config: WindowsConfigDto | AndroidConfigDto) {
     this.logger.debug(`Update device config group :${config.group}`)
+
     let eConfig = await this.configRepo.findOneBy({ group: config.group })
     if (!eConfig) {
       eConfig = this.configRepo.create()
