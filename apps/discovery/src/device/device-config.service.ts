@@ -23,10 +23,8 @@ export class DeviceConfigService implements OnApplicationBootstrap {
     if (!eConfig) {
       throw new NotFoundException(`Not found config for group: '${group}'.`)
     }
-    let configRes = fromConfigEntity(eConfig)
-    configRes.lastCheckingMapUpdatesDate = await this.getLastMapUpdatesChecking()
 
-    return configRes;
+    return this.configDtoFromEntity(eConfig);
 
   }
 
@@ -37,17 +35,27 @@ export class DeviceConfigService implements OnApplicationBootstrap {
 
   async setDeviceConfig(config: WindowsConfigDto | AndroidConfigDto) {
     delete config['headers']
+    let eConfig = await this.setConfigValues(config)
+
+    return this.configDtoFromEntity(eConfig)
+  }
+
+  async configDtoFromEntity(eConfig: DeviceConfigEntity): Promise<WindowsConfigDto | AndroidConfigDto> {
+    let lastCheckPromise = this.getLastMapUpdatesChecking()
+
+    let config = fromConfigEntity(eConfig)
 
     let technicianPassword = (config as WindowsConfigDto)?.technicianPassword;
+    this.logger.debug(`Device config technicianPassword: ${technicianPassword}`)
     if (technicianPassword){
       const hashedPassword = await this.hashPassword(technicianPassword)
-      this.logger.debug(`Hash device config technicianPassword: ${hashedPassword}`)
+      this.logger.debug(`Device config hashed technicianPassword: ${hashedPassword}`)
       config['technicianPassword'] = hashedPassword
     }
 
-    let eConfig = await this.setConfigValues(config)
+    config.lastCheckingMapUpdatesDate = await lastCheckPromise;
 
-    return fromConfigEntity(eConfig)
+    return config
   }
 
 
