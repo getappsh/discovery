@@ -47,7 +47,7 @@ export class DeviceConfigService implements OnApplicationBootstrap {
 
     let technicianPassword = (config as WindowsConfigDto)?.technicianPassword;
     this.logger.debug(`Device config technicianPassword: ${technicianPassword}`)
-    if (technicianPassword){
+    if (technicianPassword) {
       const hashedPassword = await this.hashPassword(technicianPassword)
       this.logger.debug(`Device config hashed technicianPassword: ${hashedPassword}`)
       config['technicianPassword'] = hashedPassword
@@ -67,6 +67,13 @@ export class DeviceConfigService implements OnApplicationBootstrap {
       eConfig = this.configRepo.create()
       eConfig.data = {} as WindowsConfigDto | AndroidConfigDto;
       eConfig.group = config.group
+    }
+
+    for (const key in config) {
+      if (config[key] === null) {
+        delete config[key];
+        delete eConfig.data[key];
+      }
     }
 
     if (config.group === "windows") {
