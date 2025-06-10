@@ -1,7 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
-import { DeviceMapDto } from "../../device/dto/device-map.dto";
-import { Type } from "class-transformer";
+import { ApiProperty, getSchemaPath } from "@nestjs/swagger";
+import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 import { OrgGroupEntity } from "@app/common/database/entities";
 
 export class ChildGroupDto {
@@ -63,6 +61,22 @@ export class ChildGroupDto {
   }
 
 }
+
+export class GroupResponseDto {
+  @ApiProperty({
+    type: [String],
+    description: 'Array of group IDs (as strings) that are root nodes',
+  })
+  roots: string[];
+
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { $ref: getSchemaPath(ChildGroupDto) },
+    description: 'Map of group ID (as string) to ChildGroupDto',
+  })
+  groups: Record<string, ChildGroupDto>;
+}
+
 
 export class ChildGroupRawDto {
 
