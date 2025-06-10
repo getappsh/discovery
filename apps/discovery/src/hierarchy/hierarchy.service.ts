@@ -1,5 +1,5 @@
-import { DeviceTypeEntity } from "@app/common/database/entities";
-import { CreateDeviceTypeDto, DeviceTypeDto, DeviceTypeParams, UpdateDeviceTypeDto } from "@app/common/dto/devices-hierarchy";
+import { DeviceTypeEntity, PlatformEntity } from "@app/common/database/entities";
+import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeParams, PlatformDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
 import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ILike, Repository } from "typeorm";
@@ -10,16 +10,89 @@ export class HierarchyService {
   private readonly logger = new Logger(HierarchyService.name);
 
   constructor(
+    @InjectRepository(PlatformEntity) private readonly platformRepo: Repository<PlatformEntity>,
     @InjectRepository(DeviceTypeEntity) private readonly deviceTypeRepo: Repository<DeviceTypeEntity>,
   ) {}
+
+
+  
+  // Create Platform
+  async createPlatform(dto: CreatePlatformDto): Promise<PlatformDto> {
+    this.logger.debug(`Create platform: ${dto.name}`);
+
+     const exists = await this.platformRepo.findOneBy({ name: dto.name });
+    if (exists) {
+      throw new ConflictException(`Platform name: "${dto.name}" already exists`);
+    }
+
+    const platform = new PlatformEntity();
+    platform.name = dto.name;
+    platform.description = dto.description;
+    platform.os = dto.os;
+
+    try{
+      const savedPlatform = await this.platformRepo.save(platform);
+      return PlatformDto.fromEntity(savedPlatform);
+    }catch (error) {
+      this.logger.error(`Error while saving platform: ${error}`);
+      if (error.code === '23505') { // Unique constraint violation error code for PostgreSQL
+        throw new ConflictException('Platform name already exists');
+      }
+      throw error;
+    }
+  }
+
+  async getPlatform(params: PlatformParams): Promise<PlatformDto> {
+    this.logger.debug(`Get platform with name: ${params.name}`);
+    const platform = await this.platformRepo.findOneBy({ name: params.name });
+    if (!platform) {
+      this.logger.warn(`Platform with name ${params.name} not found`);
+      throw new NotFoundException('Platform not found');
+    }
+    return PlatformDto.fromEntity(platform);
+  }
+
+
+  async getPlatforms(query: string = ''): Promise<PlatformDto[]> {
+    this.logger.debug(`Get platforms with query: ${query}`)
+    return this.platformRepo.find({ where: { name: ILike(`%${query}%`) } }).then(platforms => platforms.map(platform => PlatformDto.fromEntity(platform)));
+  }
+
+  // Update Platform
+  async updatePlatform(dto: UpdatePlatformDto): Promise<PlatformDto> {
+    this.logger.debug(`Update platform: ${dto.name}`);
+    const platform = await this.platformRepo.findOneBy({ name: dto.name });
+    if (!platform) {
+      throw new NotFoundException('Platform not found');
+    }
+    platform.name = dto.name || platform.name;
+    platform.description = dto.description || platform.description;
+    platform.os = dto.os || platform.os;
+
+    await this.platformRepo.save(platform);
+
+    return this.getPlatform({ name: platform.name });
+  }
+
+  // Delete Platform
+  async deletePlatform(params: PlatformParams): Promise<string> {
+    this.logger.debug(`Delete platform with name: ${params.name}`);
+    const platform = await this.platformRepo.findOneBy({ name: params.name });
+    if (!platform) {
+      throw new NotFoundException('Platform not found');
+    }
+    await this.platformRepo.remove(platform);
+    return `Platform ${params.name} deleted successfully`;
+  }
+
 
   // Create Device Type
   async createDeviceType(dto: CreateDeviceTypeDto): Promise<DeviceTypeDto> {
     this.logger.debug(`Create device type: ${dto.name}`);
 
-     const exists = await this.deviceTypeRepo.findOneBy({ name: dto.name });
+    const exists = await this.deviceTypeRepo.findOneBy({ name: dto.name });
     if (exists) {
-      throw new ConflictException(`Device type name: ${dto.name} already exists`);
+      throw new ConflictException(`Device type name: "${dto.name}" already exists`);
     }
     const deviceType = new DeviceTypeEntity();
     deviceType.name = dto.name;
