@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
-import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity } from '@app/common/database/entities';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -21,6 +21,8 @@ import { MailModule } from '@app/common/mail/mail.module';
 import { DeviceConfigEntity } from '@app/common/database/entities/device-config.entity';
 import { DeviceConfigService } from './device/device-config.service';
 import { JobsEntity } from '@app/common/database/entities/map-updatesCronJob';
+import { HierarchyController } from './hierarchy/hierarchy.controller';
+import { HierarchyService } from './hierarchy/hierarchy.service';
 
 @Module({
   imports: [
@@ -36,12 +38,12 @@ import { JobsEntity } from '@app/common/database/entities/map-updatesCronJob';
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
        OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity,
-        DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity
+        DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity
       ]),
     DeviceClientRepoModule,
     MailModule
   ],
-  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController],
-  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService],
+  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController],
+  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService],
 })
 export class DiscoveryModule {}
