@@ -195,6 +195,15 @@ export const DevicesGroupTopics = {
     SET_GROUP_DEVICES: `getapp-device.group.set-devices${region}`,
 } as const
 
+export const DevicesHierarchyTopics = {
+    // Device Types
+    GET_DEVICE_TYPES: `getapp-project.hierarchy.get-device-types${region}`,
+    GET_DEVICE_TYPE_BY_NAME: `getapp-project.hierarchy.get-device-type-by-name${region}`,
+    CREATE_DEVICE_TYPE: `getapp-project.hierarchy.create-device-type${region}`,
+    UPDATE_DEVICE_TYPE: `getapp-project.hierarchy.update-device-type${region}`,
+    DELETE_DEVICE_TYPE: `getapp-project.hierarchy.delete-device-type${region}`,
+}
+
 export const DeviceBugReportTopics = {
     NEW_BUG_REPORT: `getapp-device.bug-report.new${region}`,
     GET_BUG_REPORT: `getapp-device.bug-report.get${region}`,
