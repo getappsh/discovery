@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
-import { Type } from "class-transformer"
+import { Transform, Type } from "class-transformer"
 import { IsString, IsNotEmpty, IsOptional, IsArray, ValidateNested } from "class-validator"
 import { DiscoveryMessageV2Dto } from "./discovery-message.dto"
 
@@ -10,6 +10,7 @@ export class PlatformDiscoverDto {
   })
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value.toLowerCase().trim().replace(/\s+/g, "-"))
   name: string
 
   @ApiProperty({
