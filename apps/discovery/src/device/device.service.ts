@@ -205,7 +205,7 @@ export class DeviceService {
       order: { lastUpdatedDate: "DESC" },
     })
 
-    return DeviceMapDto.fromDeviceMapEntity(deviceEntity, discoveryMes)
+    return DeviceMapDto.fromDeviceMapEntity(deviceEntity, discoveryMes ?? undefined)
   }
 
   async deviceInstalled(deviceId: string): Promise<DeviceContentResDto> {
@@ -262,7 +262,7 @@ export class DeviceService {
     this.logger.log(`Register map inventory to device - ${inventory.deviceId}`)
 
     try {
-      let deviceMaps = [];
+      let deviceMaps: DeviceMapStateDto[] = [];
       const device = await this.deviceRepoS.getOrCreateDevice(inventory.deviceId)
 
       let mapsOnDevice = await this.deviceMapRepo.find({ where: { state: In([DeviceMapStateEnum.INSTALLED, DeviceMapStateEnum.DELIVERY, DeviceMapStateEnum.IMPORT, DeviceMapStateEnum.UNINSTALLED]), device: { ID: device.ID } }, relations: { map: true, device: true } });
@@ -324,7 +324,7 @@ export class DeviceService {
       this.logger.error(`map of catalog id ${catalogId} not exits`)
       throw new BadRequestException("Map not exits")
     }
-    
+
     const devices = mapEntity.devices.map(device => device.device)
 
     let mepDeviceEntity = await this.deviceToDevicesDto(devices)
@@ -335,9 +335,9 @@ export class DeviceService {
     const ids = devices.map(device => device.ID);
 
     if (ids.length === 0) {
-      return []; 
+      return [];
     }
-    
+
     const discoveries = await this.discoveryMessageRepo.createQueryBuilder("discovery")
       .where("discovery.deviceID IN  (:...ids)", { ids })
       .orderBy("discovery.deviceID")
@@ -347,7 +347,7 @@ export class DeviceService {
       .getMany();
 
     return devices.map(device => {
-      const dis = discoveries.find(dis => (dis?.device || "") as string == device.ID)
+      const dis = discoveries.find(dis => (dis?.device.ID || "") == device.ID)
       return DeviceDto.fromDeviceEntity(device, dis);
 
     })
@@ -363,17 +363,19 @@ export class DeviceService {
 
   async getDeviceSoftwares(deviceId: string): Promise<DeviceSoftwareDto> {
     this.logger.debug(`get softwares for device ${deviceId}`);
-    let device = await this.deviceRepo.findOne({ 
-      where: { ID: deviceId }, 
-      relations: { components: { release: { project: true } }},
-      select: { components: {
-        id: true, state: true, error: true, downloadedAt: true, deployedAt: true,
-        release: {
-          version: true, catalogId: true, releaseNotes: true, latest: true,
-          status: true, createdAt: true, updatedAt: true, releasedAt: true, 
-          project: {name: true, projectType: true, id: true}
-        },
-      }}
+    let device = await this.deviceRepo.findOne({
+      where: { ID: deviceId },
+      relations: { components: { release: { project: true } } },
+      select: {
+        components: {
+          id: true, state: true, error: true, downloadedAt: true, deployedAt: true,
+          release: {
+            version: true, catalogId: true, releaseNotes: true, latest: true,
+            status: true, createdAt: true, updatedAt: true, releasedAt: true,
+            project: { name: true, projectType: true, id: true }
+          },
+        }
+      }
     });
 
     if (!device) {
@@ -398,7 +400,7 @@ export class DeviceService {
 
     states = states.filter(s => s.state !== DeviceMapStateEnum.UNINSTALLED && s.state !== DeviceMapStateEnum.DELETED)
 
-    let deviceMaps = []
+    let deviceMaps: DeviceMapStateEntity[] = []
     for (let s of states) {
       if (s.state === DeviceMapStateEnum.INSTALLED) {
         this.sendMapInstallEvent2Offering(s);
@@ -407,7 +409,7 @@ export class DeviceService {
       dm.map = { catalogId: s.catalogId } as MapEntity;
       dm.device = { ID: s.deviceId } as DeviceEntity;
       dm.state = s.state;
-      dm.error = s.error ?? null
+      dm.error = s.error ?? undefined
       dm.downloadedAt = s.downloadedAt
       dm.deployedAt = s.deployedAt
 
@@ -454,16 +456,16 @@ export class DeviceService {
 
     let deleted = states.filter(s => s.state === DeviceComponentStateEnum.DELETED);
     this.logger.debug(`Components that are deleted form the device: ${JSON.stringify(deleted)}`)
-    for(let s of deleted){
-      this.deviceCompRepo.delete({ 
-        release: { catalogId: s.catalogId }, 
+    for (let s of deleted) {
+      this.deviceCompRepo.delete({
+        release: { catalogId: s.catalogId },
         device: { ID: s.deviceId },
         state: Not(In([DeviceComponentStateEnum.DEPLOY, DeviceComponentStateEnum.INSTALLED, DeviceComponentStateEnum.UNINSTALLED]))
-       });
+      });
     }
 
-    states = states.filter(s => s.state !== DeviceComponentStateEnum.UNINSTALLED &&  s.state !== DeviceComponentStateEnum.DELETED)
-    let deviceComps = []
+    states = states.filter(s => s.state !== DeviceComponentStateEnum.UNINSTALLED && s.state !== DeviceComponentStateEnum.DELETED)
+    let deviceComps: DeviceComponentEntity[] = []
     for (let s of states) {
       if (s.state === DeviceComponentStateEnum.INSTALLED) {
         this.sendSoftwareInstallEvent2Offering(s);
@@ -472,7 +474,7 @@ export class DeviceService {
       dc.release = { catalogId: s.catalogId } as ReleaseEntity;
       dc.device = { ID: s.deviceId } as DeviceEntity;
       dc.state = s.state;
-      dc.error = s.error ?? null
+      dc.error = s.error ?? undefined
       dc.downloadedAt = s.downloadedAt
       dc.deployedAt = s.deployedAt
 
@@ -528,7 +530,7 @@ export class DeviceService {
     this.logger.log(`Release event for catalogId : ${dto.catalogId}, event ${dto.event}`);
     if (dto.event !== ReleaseStatusEnum.RELEASED) {
       this.logger.log(`Remove offering or push from DeviceSoftware state`);
-      this.deviceCompRepo.delete({ release: { catalogId: dto.catalogId }, state: In([DeviceComponentStateEnum.PUSH, DeviceComponentStateEnum.OFFERING])});
+      this.deviceCompRepo.delete({ release: { catalogId: dto.catalogId }, state: In([DeviceComponentStateEnum.PUSH, DeviceComponentStateEnum.OFFERING]) });
     }
   }
 }

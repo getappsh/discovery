@@ -52,7 +52,7 @@ export class DeviceRepoService {
     }
     const savedDevice = await this.deviceRepo.save(device)
 
-    let orgId: OrgUIDEntity;
+    let orgId: OrgUIDEntity | null;
     if (p.orgUID) {
       if (p.orgUID != null) {
         // TODO handle duplicate case
@@ -62,12 +62,13 @@ export class DeviceRepoService {
 
       } else {
         orgId = await this.orgIdEntity.findOne({ where: { device: { ID: device.ID } } })
-        orgId.device = null
+        if (orgId) orgId.device = undefined
       }
 
-      const savedOrgId = await this.orgIdEntity.save(orgId);
-
-      savedDevice.orgUID = savedOrgId
+      if (orgId) {
+        const savedOrgId = await this.orgIdEntity.save(orgId);
+        savedDevice.orgUID = savedOrgId
+      }
     }
     return DevicePutDto.fromDeviceEntity(savedDevice)
   }

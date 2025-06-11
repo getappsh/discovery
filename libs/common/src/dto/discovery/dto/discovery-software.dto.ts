@@ -38,12 +38,12 @@ export class ComponentDto {
   @ApiProperty({ required: false })
   @IsSemVer()
   @IsOptional()
-  baseVersion: string;
+  baseVersion?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsSemVer()
-  prevVersion: string;
+  prevVersion?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

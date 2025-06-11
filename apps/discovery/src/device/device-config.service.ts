@@ -41,7 +41,7 @@ export class DeviceConfigService implements OnApplicationBootstrap {
   }
 
   async configDtoFromEntity(eConfig: DeviceConfigEntity): Promise<WindowsConfigDto | AndroidConfigDto> {
-    let lastCheckPromise = this.getLastMapUpdatesChecking()
+    let lastCheckPromise = await this.getLastMapUpdatesChecking()
 
     let config = fromConfigEntity(eConfig)
 
@@ -53,7 +53,7 @@ export class DeviceConfigService implements OnApplicationBootstrap {
       config['technicianPassword'] = hashedPassword
     }
 
-    config.lastCheckingMapUpdatesDate = await lastCheckPromise;
+    if (lastCheckPromise) config.lastCheckingMapUpdatesDate = lastCheckPromise;
 
     return config
   }
@@ -80,24 +80,26 @@ export class DeviceConfigService implements OnApplicationBootstrap {
       if ('layers' in config) {
         const layersConfig = (config as WindowsConfigDto).layers
         delete config.layers
-        if (!(eConfig.data as WindowsConfigDto).layers) {
+        if (!(eConfig!.data as WindowsConfigDto).layers) {
           (eConfig.data as WindowsConfigDto).layers = layersConfig?.filter((layer, index, self) =>
             !layer.delete && index === self.findIndex(l => l.layerName === layer.layerName)
           )
         } else {
           layersConfig?.forEach(layer => {
-            const index = (eConfig.data as WindowsConfigDto).layers.findIndex(l => l.layerName === layer.layerName)
-            if (index === -1) {
-              if (!layer.delete) {
-                (eConfig.data as WindowsConfigDto).layers.push(layer);
-              }
-            } else {
-              if (!layer.delete) {
-                (eConfig.data as WindowsConfigDto).layers[index] = layer
+            let index = (eConfig!.data as WindowsConfigDto).layers?.findIndex(l => l.layerName === layer.layerName)
+            if (index) {
+              if (index === -1) {
+                if (!layer.delete) {
+                  (eConfig!.data as WindowsConfigDto).layers?.push(layer);
+                }
               } else {
-                !["אורטופוטו", "מפת שליטה"].includes(layer.layerName)
-                  ? (eConfig.data as WindowsConfigDto).layers.splice(index, 1)
-                  : (eConfig.data as WindowsConfigDto).layers.splice(index, 1, { layerName: layer.layerName })
+                if (!layer.delete) {
+                  (eConfig!.data as WindowsConfigDto).layers![index] = layer
+                } else {
+                  !["אורטופוטו", "מפת שליטה"].includes(layer.layerName)
+                    ? (eConfig!.data as WindowsConfigDto).layers?.splice(index, 1)
+                    : (eConfig!.data as WindowsConfigDto).layers?.splice(index, 1, { layerName: layer.layerName })
+                }
               }
             }
           })
@@ -105,7 +107,7 @@ export class DeviceConfigService implements OnApplicationBootstrap {
       }
 
       if ('getAppServerUrls' in config) {
-        const setUrl = new Set((eConfig.data as WindowsConfigDto).getAppServerUrls as string[])
+        const setUrl = new Set((eConfig!.data as WindowsConfigDto).getAppServerUrls as string[])
         const urlsConfig = (config as WindowsConfigDto).getAppServerUrls
         delete config.getAppServerUrls
         if (Array.isArray(urlsConfig)) {
@@ -119,7 +121,7 @@ export class DeviceConfigService implements OnApplicationBootstrap {
       }
     }
 
-    delete config.group
+    delete (config as any).layers
     for (const key in config) {
       eConfig.data[key] = config[key]
     }
@@ -185,7 +187,7 @@ export class DeviceConfigService implements OnApplicationBootstrap {
   }
 
 
-  async getLastMapUpdatesChecking(): Promise<Date> {
+  async getLastMapUpdatesChecking(): Promise<Date | null> {
     const jobTime = await this.jobRepo.findOne({ where: { name: "mapUpdates", endTime: Not(IsNull()) }, order: { startTime: "DESC" } })
     return jobTime ? new Date(jobTime.endTime) : null
   }

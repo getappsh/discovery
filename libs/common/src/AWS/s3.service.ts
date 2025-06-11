@@ -27,9 +27,9 @@ export class S3Service implements OnApplicationBootstrap {
     const secretAccessKey = this.configService.get('SECRET_ACCESS_KEY');
     const credentials = { accessKeyId, secretAccessKey };
 
-    this.interEndpoint = this.configService.get('S3_ENDPOINT_INTERNAL');
-    this.externEndpoint = this.configService.get('S3_ENDPOINT_EXTERNAL');
-    this.bucketName = this.configService.get('BUCKET_NAME');
+    this.interEndpoint = this.configService.get('S3_ENDPOINT_INTERNAL') ?? "";
+    this.externEndpoint = this.configService.get('S3_ENDPOINT_EXTERNAL') ?? "";
+    this.bucketName = this.configService.get('BUCKET_NAME') ?? "";
 
     const baseS3Config = {
       region: awsRegion,

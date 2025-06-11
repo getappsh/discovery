@@ -25,7 +25,7 @@ export class DiscoveryService {
   ) {
   }
 
-  async getDevicePerson(deviceId: string): Promise<Pick<DiscoveryMessageEntity, 'personalDevice'> & { device: Pick<DeviceEntity, 'ID'> }> {
+  async getDevicePerson(deviceId: string): Promise<(Pick<DiscoveryMessageEntity, "personalDevice"> & { device: Pick<DeviceEntity, "ID">; }) | undefined | null> {
     this.logger.log(`Get device personal info`)
     try {
       const dvcPrs = await this.discoveryMessageRepo
@@ -35,7 +35,7 @@ export class DiscoveryService {
         .orderBy('msg.lastUpdatedDate', 'DESC')
         .select(['msg.personalDevice', 'device.ID'])
         .getOne();
-      this.logger.debug(`Device personal res for deviceId - ${deviceId} : ${JSON.stringify(dvcPrs.personalDevice)}`)
+      this.logger.debug(`Device personal res for deviceId - ${deviceId} : ${JSON.stringify(dvcPrs?.personalDevice)}`)
       return dvcPrs
     } catch (err: any) {
       this.logger.error(`Err when get personal device for deviceId ${deviceId}, Err: ${err}`)

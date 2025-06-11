@@ -12,12 +12,13 @@ import { GET_APP_LOGGER } from '@app/common/logger/logger.module';
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     DiscoveryModule,
-    {...getClientConfig(
-      {
-        type: MicroserviceType.DISCOVERY, 
-        name: MicroserviceName.DISCOVERY_SERVICE
-      }, 
-      MSType[process.env.MICRO_SERVICE_TYPE]),
+    {
+      ...getClientConfig(
+        {
+          type: MicroserviceType.DISCOVERY,
+          name: MicroserviceName.DISCOVERY_SERVICE
+        },
+        MSType[process.env.MICRO_SERVICE_TYPE ?? ""]),
       bufferLogs: true,
     }
   );
