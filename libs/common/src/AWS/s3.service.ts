@@ -17,9 +17,9 @@ export class S3Service implements OnApplicationBootstrap {
 
   private s3: S3;
   private externS3: S3;
-  private bucketName: string;
-  private interEndpoint: string
-  private externEndpoint: string
+  private bucketName: string | undefined;
+  private interEndpoint: string | undefined
+  private externEndpoint: string | undefined
 
   constructor(private configService: ConfigService) {
     const awsRegion = this.configService.get('AWS_REGION');
@@ -27,9 +27,9 @@ export class S3Service implements OnApplicationBootstrap {
     const secretAccessKey = this.configService.get('SECRET_ACCESS_KEY');
     const credentials = { accessKeyId, secretAccessKey };
 
-    this.interEndpoint = this.configService.get('S3_ENDPOINT_INTERNAL') ?? "";
-    this.externEndpoint = this.configService.get('S3_ENDPOINT_EXTERNAL') ?? "";
-    this.bucketName = this.configService.get('BUCKET_NAME') ?? "";
+    this.interEndpoint = this.configService.get('S3_ENDPOINT_INTERNAL');
+    this.externEndpoint = this.configService.get('S3_ENDPOINT_EXTERNAL');
+    this.bucketName = this.configService.get('BUCKET_NAME');
 
     const baseS3Config = {
       region: awsRegion,
@@ -55,11 +55,11 @@ export class S3Service implements OnApplicationBootstrap {
       await this.s3.headBucket({ Bucket: this.bucketName });
       this.logger.debug(`Bucket "${this.bucketName}" already exists.`);
     } catch (error) {
-      if (error["$metadata"].httpStatusCode === 404) {
+      if (error["$metadata"]?.httpStatusCode === 404) {
         await this.s3.createBucket({ Bucket: this.bucketName });
         this.logger.log(`Bucket "${this.bucketName}" created successfully.`);
       } else {
-        this.logger.error(`Failed to check/create bucket - error code: ${error["$metadata"].httpStatusCode}, mes: ${error.toString()}`);
+        this.logger.error(`Failed to check/create bucket - error code: ${error["$metadata"]?.httpStatusCode}, mes: ${error.toString()}`);
       }
     }
   }
