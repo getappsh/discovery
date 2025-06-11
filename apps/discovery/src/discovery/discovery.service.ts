@@ -1,7 +1,7 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Not, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DiscoveryType, PlatformEntity, ReleaseEntity } from '@app/common/database/entities';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceTypeEntity, DiscoveryType, PlatformEntity, ReleaseEntity } from '@app/common/database/entities';
 import { ComponentStateDto, DiscoveryMessageDto, DiscoveryMessageV2Dto } from '@app/common/dto/discovery';
 import { MTlsStatusDto } from '@app/common/dto/device';
 import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
@@ -19,6 +19,7 @@ export class DiscoveryService {
     @InjectRepository(DeviceEntity) private readonly deviceRepo: Repository<DeviceEntity>,
     @InjectRepository(DeviceComponentEntity) private readonly deviceComponentRepo: Repository<DeviceComponentEntity>,
     @InjectRepository(PlatformEntity) private readonly platformRepo: Repository<PlatformEntity>,
+    @InjectRepository(DeviceTypeEntity) private readonly deviceTypeRepo: Repository<DeviceTypeEntity>,
     @InjectRepository(ReleaseEntity) private readonly releaseRepo: Repository<ReleaseEntity>,
     private readonly deviceService: DeviceService,
   ) {
@@ -42,28 +43,55 @@ export class DiscoveryService {
 
   }
 
-  async discoveryDeviceContext(dto: DiscoveryMessageV2Dto) {
-    let device = this.deviceRepo.create(dto.general.physicalDevice);
-    device.lastConnectionDate = new Date();
+  async setDeviceContextAndComps(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
+    let device = await this.deviceRepo.findOne({ where: { ID: dto.id } })
+      ?? this.deviceRepo.create({ ...dto.general?.physicalDevice, ID: dto.id });
+
+    // If the device's last connection date is more recent than the snapshot date,
+    // it means a newer message has already been processed for this device.
+
+    // Wrap dto.snapshotDate in Date, as microservice data loses type.
+    if (parent && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
+
+    device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.formations = dto?.softwareData?.formations;
-    device.platforms = await this.getOrCreatePlatforms(dto?.softwareData?.platforms)
+
+    if (dto.platform) device.platform = await this.platformRepo.findOne({ where: { name: dto.platform.name } }) ?? undefined
+    if (dto.deviceType) device.deviceType = await this.deviceTypeRepo.findOne({ where: { name: dto.deviceType } }) ?? undefined
+    if (parent) device.parent = parent
+
+    // device.platforms will be remove in the future, use instead device.platform
+    device.platforms = await this.getOrCreatePlatforms(dto?.softwareData?.platforms) ?? []
 
     this.logger.debug("save device")
-    await this.deviceRepo.save(device)
+    device = await this.deviceRepo.save(device)
 
     if (dto.discoveryType === DiscoveryType.GET_APP && dto?.softwareData?.components) {
       await this.setCompsOnDeviceV2(device.ID, dto?.softwareData?.components)
     }
 
+    return device
+  }
+
+  async discoveryDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
+
+    this.logger.log(`Save discover mes for device ${dto.id}`);
+
+    const device = await this.setDeviceContextAndComps(dto, parent)
+
     const dm = new DiscoveryMessageEntity()
-    dm.personalDevice = dto.general.personalDevice;
-    dm.situationalDevice = dto.general.situationalDevice;
+    dm.personalDevice = dto.general?.personalDevice;
+    dm.situationalDevice = dto.general?.situationalDevice;
     dm.discoveryType = dto.discoveryType
     dm.discoveryData = dto.softwareData;
     dm.device = device
 
     this.logger.verbose(`discovery message ${dm}`);
     this.discoveryMessageRepo.save(dm);
+
+    if (dto.platform?.devices?.length) {
+      dto.platform.devices.forEach(d => this.discoveryDeviceContext(d, device))
+    }
   }
 
   private async getOrCreatePlatforms(platforms?: string[]) {

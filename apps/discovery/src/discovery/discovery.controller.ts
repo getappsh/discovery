@@ -9,36 +9,36 @@ import { RpcPayload } from '@app/common/microservice-client';
 
 @Controller()
 export class DiscoveryController {
-  constructor(private readonly discoveryService: DiscoveryService) {}
+  constructor(private readonly discoveryService: DiscoveryService) { }
 
   @MessagePattern(DeviceTopics.DEVICE_PERSONAL)
-  getDevicePersonName(@RpcPayload() deviceID: string){    
-   return this.discoveryService.getDevicePerson(deviceID)
+  getDevicePersonName(@RpcPayload() deviceID: string) {
+    return this.discoveryService.getDevicePerson(deviceID)
   }
 
   @EventPattern(DeviceTopicsEmit.DISCOVER_DEVICE_CONTEXT)
-  discoveryDeviceContext(@RpcPayload() data: DiscoveryMessageDto){
+  discoveryDeviceContext(@RpcPayload() data: DiscoveryMessageDto) {
     this.discoveryService.discoveryMessage(data)
   }
 
   @EventPattern(DeviceTopicsEmit.DISCOVER_DEVICE_CONTEXT_V2)
-  discoverDeviceContextV2(@RpcPayload() dto: DiscoveryMessageV2Dto){
+  discoverDeviceContextV2(@RpcPayload() dto: DiscoveryMessageV2Dto) {
     this.discoveryService.discoveryDeviceContext(dto);
   }
-  
+
   @EventPattern(DeviceTopicsEmit.IM_PUSH_DISCOVERY)
-  imPushDiscoveryDevices(@RpcPayload() devicesDiscovery: DeviceDiscoverDto[]){
+  imPushDiscoveryDevices(@RpcPayload() devicesDiscovery: DeviceDiscoverDto[]) {
     this.discoveryService.imPushDiscoveryDevices(devicesDiscovery);
 
   }
- 
+
   @MessagePattern(DeviceTopics.IM_PULL_DISCOVERY)
-  imPullDiscoveryDevices(@RpcPayload() devicesDiscovery: DeviceDiscoverDto[]): Promise<DeviceDiscoverResDto[]>{
+  imPullDiscoveryDevices(@RpcPayload() devicesDiscovery: DeviceDiscoverDto[]): Promise<DeviceDiscoverResDto[]> {
     return this.discoveryService.imPullDiscoveryDevices(devicesDiscovery)
   }
-  
+
   @EventPattern(DeviceTopicsEmit.UPDATE_TLS_STATUS)
-  updateMTlsStatus(@RpcPayload() mTlsStatus: MTlsStatusDto){
+  updateMTlsStatus(@RpcPayload() mTlsStatus: MTlsStatusDto) {
     this.discoveryService.updateMTlsStatusForDevice(mTlsStatus);
   }
 }
