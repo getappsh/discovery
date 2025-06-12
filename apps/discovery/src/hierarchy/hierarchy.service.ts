@@ -1,5 +1,5 @@
 import { DeviceTypeEntity, PlatformEntity } from "@app/common/database/entities";
-import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeParams, PlatformDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
+import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeParams, PlatformDeviceTypeParams, PlatformDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
 import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ILike, Repository } from "typeorm";
@@ -150,4 +150,55 @@ export class HierarchyService {
     return `Device type ${params.name} deleted successfully`;
   }
 
+
+  // add Device Type to Platform
+  async addDeviceTypeToPlatform(params: PlatformDeviceTypeParams){
+    this.logger.debug(`Add device type: '${params.deviceTypeName}' to platform: '${params.platformName}'`);
+    const platform = await this.platformRepo.findOne({
+      where: { name: params.platformName }, 
+      relations: { deviceTypes: true },
+      select: {deviceTypes: {name: true}}
+    });
+    if (!platform) {
+      throw new NotFoundException(`Platform: '${params.platformName}' not found`);
+    }
+
+    if (platform.deviceTypes.some(dt => dt.name === params.deviceTypeName)) {
+      throw new ConflictException(`Device type: '${params.deviceTypeName}' already exists in platform: '${params.platformName}'`);
+    }
+    
+    const deviceType = await this.deviceTypeRepo.findOneBy({ name: params.deviceTypeName });
+    if (!deviceType) {
+      throw new NotFoundException(`Device type: '${params.deviceTypeName}' not found`);
+    }
+    
+    platform.deviceTypes.push(deviceType);
+    await this.platformRepo.save(platform);
+    
+    return PlatformDto.fromEntity(platform);
+  }
+
+
+  // remove Device Type from Platform
+  async removeDeviceTypeFromPlatform(params: PlatformDeviceTypeParams) {
+    this.logger.debug(`Remove device type: '${params.deviceTypeName}' from platform: '${params.platformName}'`);
+    const platform = await this.platformRepo.findOne({
+      where: { name: params.platformName }, 
+      relations: { deviceTypes: true },
+      select: {deviceTypes: {name: true}}
+    });
+    if (!platform) {
+      throw new NotFoundException(`Platform: '${params.platformName}' not found`);
+    }
+
+    const deviceTypeIndex = platform.deviceTypes.findIndex(dt => dt.name === params.deviceTypeName);
+    if (deviceTypeIndex === -1) {
+      throw new NotFoundException(`Device type: '${params.deviceTypeName}' not found in platform: '${params.platformName}'`);
+    }
+
+    platform.deviceTypes.splice(deviceTypeIndex, 1);
+    await this.platformRepo.save(platform);
+    
+    return PlatformDto.fromEntity(platform);
+  }
 }

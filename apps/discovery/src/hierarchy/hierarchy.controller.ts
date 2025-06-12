@@ -1,7 +1,7 @@
 import { Controller, Logger } from "@nestjs/common";
 import { HierarchyService } from "./hierarchy.service";
 import { DevicesHierarchyTopics } from "@app/common/microservice-client/topics";
-import { CreateDeviceTypeDto, DeviceTypeParams, DeviceTypeDto, UpdateDeviceTypeDto, CreatePlatformDto, PlatformDto, PlatformParams, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
+import { CreateDeviceTypeDto, DeviceTypeParams, DeviceTypeDto, UpdateDeviceTypeDto, CreatePlatformDto, PlatformDto, PlatformParams, UpdatePlatformDto, PlatformDeviceTypeParams } from "@app/common/dto/devices-hierarchy";
 import { RpcPayload } from "@app/common/microservice-client";
 import { MessagePattern } from "@nestjs/microservices";
 
@@ -62,6 +62,14 @@ export class HierarchyController {
   deleteDeviceType(@RpcPayload() params: DeviceTypeParams) {
     return this.hierarchyService.deleteDeviceType(params);
   }
-  
 
+  @MessagePattern(DevicesHierarchyTopics.ADD_DEVICE_TYPE_TO_PLATFORM)
+  addDeviceTypeToPlatform(@RpcPayload() params: PlatformDeviceTypeParams): Promise<PlatformDto> {
+    return this.hierarchyService.addDeviceTypeToPlatform(params);
+  }
+
+  @MessagePattern(DevicesHierarchyTopics.REMOVE_DEVICE_TYPE_FROM_PLATFORM)
+  removeDeviceTypeFromPlatform(@RpcPayload() params: PlatformDeviceTypeParams): Promise<PlatformDto> {
+    return this.hierarchyService.removeDeviceTypeFromPlatform(params);
+  }
 }
