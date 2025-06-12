@@ -1,5 +1,5 @@
 import { DeviceTypeEntity, MemberProjectEntity, PlatformEntity, ProjectEntity } from "@app/common/database/entities";
-import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeParams, DeviceTypeProjectParams, PlatformDeviceTypeParams, PlatformDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
+import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeHierarchyDto, DeviceTypeParams, DeviceTypeProjectParams, PlatformDeviceTypeParams, PlatformDto, PlatformHierarchyDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
 import { ProjectAccessService } from "@app/common/utils/project-access";
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -153,6 +153,34 @@ export class HierarchyService implements ProjectAccessService {
     return `Device type ${params.name} deleted successfully`;
   }
 
+  async getPlatformHierarchy(params: PlatformParams): Promise<PlatformHierarchyDto> {
+    this.logger.debug(`Getting full hierarchy tree for platform: ${params.name}`);
+    const platform = await this.platformRepo.findOne({ 
+      where: { name: params.name },
+      relations: { deviceTypes: {projects: true} }, 
+      select: { deviceTypes: { name: true, projects: {id: true, name: true} } } 
+    });
+
+    if (!platform) {
+      throw new NotFoundException(`Platform: '${params.name}' not found`);
+    }
+    
+    return PlatformHierarchyDto.fromPlatformEntity(platform);
+  }
+
+  async getDeviceTypeHierarchy(params: DeviceTypeParams): Promise<DeviceTypeHierarchyDto> {
+    this.logger.debug(`Getting full hierarchy tree for device type: ${params.name}`);
+    const deviceType = await this.deviceTypeRepo.findOne({ 
+      where: { name: params.name },
+      relations: { projects: true }, 
+      select: { projects: {id: true, name: true} } 
+    });
+    if (!deviceType) {
+      throw new NotFoundException(`Device type: '${params.name}' not found`);
+    }
+    return DeviceTypeHierarchyDto.fromDeviceTypeEntity(deviceType);
+  }
+
 
   // add Device Type to Platform
   async addDeviceTypeToPlatform(params: PlatformDeviceTypeParams){
@@ -178,7 +206,7 @@ export class HierarchyService implements ProjectAccessService {
     platform.deviceTypes.push(deviceType);
     await this.platformRepo.save(platform);
     
-    return PlatformDto.fromEntity(platform);
+    return this.getPlatformHierarchy({ name: params.platformName });
   }
 
 
@@ -202,7 +230,7 @@ export class HierarchyService implements ProjectAccessService {
     platform.deviceTypes.splice(deviceTypeIndex, 1);
     await this.platformRepo.save(platform);
     
-    return PlatformDto.fromEntity(platform);
+    return this.getPlatformHierarchy({ name: params.platformName });
   }
 
 
@@ -232,7 +260,7 @@ export class HierarchyService implements ProjectAccessService {
     deviceType.projects.push(project);
     await this.deviceTypeRepo.save(deviceType);
     
-    return DeviceTypeDto.fromEntity(deviceType);
+    return this.getDeviceTypeHierarchy({ name: params.deviceTypeName });
   }
 
   // Remove Project from Device Type
@@ -256,8 +284,7 @@ export class HierarchyService implements ProjectAccessService {
     deviceType.projects.splice(projectIndex, 1);
     await this.deviceTypeRepo.save(deviceType);
 
-    return DeviceTypeDto.fromEntity(deviceType);
-    
+    return this.getDeviceTypeHierarchy({ name: params.deviceTypeName });
   }
  
   getMemberInProject(projectIdentifier: number | string,  email: string): Promise<MemberProjectEntity> {
