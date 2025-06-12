@@ -43,7 +43,7 @@ export class DiscoveryService {
 
   }
 
-  async setDeviceContextAndComps(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
+  async setDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
     let device = await this.deviceRepo.findOne({ where: { ID: dto.id } })
       ?? this.deviceRepo.create({ ...dto.general?.physicalDevice, ID: dto.id });
 
@@ -64,30 +64,38 @@ export class DiscoveryService {
     device.platforms = await this.getOrCreatePlatforms(dto?.softwareData?.platforms) ?? []
 
     this.logger.debug("save device")
-    device = await this.deviceRepo.save(device)
-
-    if (dto.discoveryType === DiscoveryType.GET_APP && dto?.softwareData?.components) {
-      await this.setCompsOnDeviceV2(device.ID, dto?.softwareData?.components)
-    }
-
-    return device
+    return await this.deviceRepo.save(device)
   }
 
   async discoveryDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
 
     this.logger.log(`Save discover mes for device ${dto.id}`);
 
-    const device = await this.setDeviceContextAndComps(dto, parent)
+    const device = await this.setDeviceContext(dto, parent)
 
     const dm = new DiscoveryMessageEntity()
+    dm.snapshotDate = parent ? dto.snapshotDate : new Date()
+    dm.discoveryType = dto.discoveryType
     dm.personalDevice = dto.general?.personalDevice;
     dm.situationalDevice = dto.general?.situationalDevice;
-    dm.discoveryType = dto.discoveryType
     dm.discoveryData = dto.softwareData;
     dm.device = device
 
+
     this.logger.verbose(`discovery message ${dm}`);
     this.discoveryMessageRepo.save(dm);
+
+    const lastMsgForType = await this.discoveryMessageRepo.findOne({
+      where: { device: { ID: device.ID }, discoveryType: dto.discoveryType },
+      select: ["id", "snapshotDate"],
+      order: { snapshotDate: "DESC" }
+    })
+
+    if (!lastMsgForType || new Date(dto.snapshotDate) > lastMsgForType.snapshotDate) {
+      if (dto.discoveryType === DiscoveryType.GET_APP && dto?.softwareData?.components) {
+        await this.setCompsOnDeviceV2(device.ID, dto?.softwareData?.components)
+      }
+    }
 
     if (dto.platform?.devices?.length) {
       dto.platform.devices.forEach(d => this.discoveryDeviceContext(d, device))
@@ -139,6 +147,8 @@ export class DiscoveryService {
   }
 
   private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]) {
+    console.log("here");
+    
     const compsCatalogId = Array.from(new Set(compsState.map(comp => comp.catalogId)));
 
     let deviceComps: DeviceComponentStateDto[] = []
