@@ -1,5 +1,6 @@
-import { Column, CreateDateColumn, Entity, ManyToMany, PrimaryColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, PrimaryColumn, UpdateDateColumn } from "typeorm";
 import { PlatformEntity } from "./platform.entity";
+import { ProjectEntity } from "./project.entity";
 
 @Entity("device_type")
 export class DeviceTypeEntity {
@@ -18,4 +19,13 @@ export class DeviceTypeEntity {
 
   @ManyToMany(() => PlatformEntity, platform => platform.deviceTypes)
   platforms: PlatformEntity[];
+
+  @ManyToMany(() => ProjectEntity, project => project.deviceTypes, { cascade: true })
+  @JoinTable({
+    name: "device_type_project",
+    joinColumn: { name: "device_type_name", referencedColumnName: "name" },
+    inverseJoinColumn: { name: "project_id", referencedColumnName: "id" },
+  })
+  projects: ProjectEntity[];
+
 }

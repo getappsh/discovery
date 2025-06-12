@@ -206,8 +206,8 @@ export const DevicesHierarchyTopics = {
     // Hierarchy Tree
     ADD_DEVICE_TYPE_TO_PLATFORM: `getapp-device.hierarchy.add-device-type-to-platform${region}`,
     REMOVE_DEVICE_TYPE_FROM_PLATFORM: `getapp-device.hierarchy.remove-device-type-from-platform${region}`,
-
-
+    ADD_PROJECT_TO_DEVICE_TYPE: `getapp-device.hierarchy.add-project-to-device-type${region}`,
+    REMOVE_PROJECT_FROM_DEVICE_TYPE: `getapp-device.hierarchy.remove-project-from-device-type${region}`,
 }
 
 export const DeviceBugReportTopics = {

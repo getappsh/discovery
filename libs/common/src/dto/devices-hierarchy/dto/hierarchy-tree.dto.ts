@@ -1,6 +1,7 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, IntersectionType, PickType } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import { IsString, IsNotEmpty } from "class-validator";
+import { ProjectIdentifierParams } from "../../project-management";
 
 
 export class PlatformDeviceTypeParams {
@@ -21,4 +22,11 @@ export class PlatformDeviceTypeParams {
   )
   @Type(() => String)
   deviceTypeName: string;
+}
+
+export class DeviceTypeProjectParams extends IntersectionType(
+  PickType(PlatformDeviceTypeParams, ['deviceTypeName'] as const),
+  ProjectIdentifierParams
+) {
+
 }
