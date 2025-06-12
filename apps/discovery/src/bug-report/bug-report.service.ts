@@ -10,7 +10,7 @@ import { MailService } from "@app/common/mail/mail.service";
 
 
 @Injectable()
-export class BugReportService{
+export class BugReportService {
   private readonly logger = new Logger(BugReportService.name);
 
   constructor(
@@ -19,14 +19,14 @@ export class BugReportService{
     private readonly deviceService: DeviceService,
     private s3Service: S3Service,
     private mailService: MailService,
-  ){}
+  ) { }
 
 
 
-  async newBugReport(bugReport: NewBugReportDto){
+  async newBugReport(bugReport: NewBugReportDto) {
     this.logger.debug(`Create new bug report for device: ${bugReport.deviceId}`)
-    const device = await this.deviceRepository.findOneBy({ID: bugReport.deviceId})
-    if (!device){
+    const device = await this.deviceRepository.findOneBy({ ID: bugReport.deviceId })
+    if (!device) {
       throw new NotFoundException(`Device ID: ${bugReport.deviceId} dose not exists`)
     }
 
@@ -43,14 +43,14 @@ export class BugReportService{
     const uploadUrl = await this.s3Service.generatePresignedUrlForUpload(path)
     this.mailService.sendBugReport(bug.device.ID, bug.agentVersion, bug.description, (await (this.s3Service.generatePresignedUrlForDownload(bug.logsPath))))
     return new NewBugReportResDto(res.id, uploadUrl)
-  
+
   }
 
-  async getBugReport(bugId: string){
+  async getBugReport(bugId: string) {
     this.logger.debug(`get bug id ${bugId}`)
     const id = parseInt(bugId) || -1
 
-    const bug = await this.bugReportRepository.findOne({where: {id: id}, relations: {device: true}},)
+    const bug = await this.bugReportRepository.findOne({ where: { id: id }, relations: { device: true } },)
     if (!bug) {
       throw new NotFoundException(`Bug id: ${id} dose not exists`)
     }
@@ -58,12 +58,12 @@ export class BugReportService{
     const devices = await this.deviceService.deviceToDevicesDto([bug.device])
 
     let deviceDto: DeviceDto;
-    if (devices.length > 0){
+    if (devices.length > 0) {
       deviceDto = devices[0]
+      const downloadUrl = await this.s3Service.generatePresignedUrlForDownload(bug.logsPath)
+      return BugReportDto.fromEntity(bug, deviceDto, downloadUrl)
     }
-    const downloadUrl = await this.s3Service.generatePresignedUrlForDownload(bug.logsPath)
-    return BugReportDto.fromEntity(bug, deviceDto, downloadUrl)
   }
-  
+
 
 }
