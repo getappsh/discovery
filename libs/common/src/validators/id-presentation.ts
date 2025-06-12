@@ -4,20 +4,20 @@ import { PlatformDiscoverDto } from '../dto/discovery/dto/discovery-platform';
 
 @ValidatorConstraint({ name: 'EitherIdPresentConstraint', async: false })
 export class EitherIdPresentConstraint implements ValidatorConstraintInterface {
-  validate(value: any, args: ValidationArguments) {
+  validate(value: any, args: ValidationArguments): boolean {
 
     const obj = args.object as DiscoveryMessageV2Dto;
 
     // Check if root id is present and not empty
     const rootId = obj.id;
-    const hasRootId = rootId && typeof rootId === 'string' && rootId.trim() !== '';
+    const hasRootId = !!rootId && typeof rootId === 'string' && rootId.trim() !== '';
 
     // Check if nested general.physicalDevice.ID is present and not empty
     const nestedId = obj.general?.physicalDevice?.ID;
-    const hasNestedId = nestedId && typeof nestedId === 'string' && nestedId.trim() !== '';
+    const hasNestedId = !!nestedId && typeof nestedId === 'string' && nestedId.trim() !== '';
 
     if (!rootId && hasNestedId) {
-      obj.id = obj.general.physicalDevice.ID
+      obj.id = nestedId
     }
 
     if (!obj.platform && obj.softwareData.platforms) {

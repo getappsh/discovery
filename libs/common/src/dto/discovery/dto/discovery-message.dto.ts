@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger"
-import { IsArray, IsDate, IsEnum, IsNotEmpty, IsOptional, IsString, isString, Validate, ValidateNested } from "class-validator"
+import { IsDate, IsEnum, IsNotEmpty, IsOptional, IsString, Validate, ValidateNested } from "class-validator"
 import { Type } from "class-transformer";
 import { GeneralDiscoveryDto } from "./discovery-general.dto";
 import { DiscoverySoftwareDto, DiscoverySoftwareV2Dto } from "./discovery-software.dto";
@@ -54,11 +54,15 @@ export class DiscoveryMessageV2Dto {
    */
   @Validate(EitherIdPresentConstraint)
   @ApiProperty({
-    required: false, description: 'Timestamp when the discovery snapshot was taken'
+    required: false,
+    description: 'Timestamp when the discovery snapshot was taken',
+    type: String, // Important for Swagger to document this as a string
+    example: new Date(),
   })
   @IsOptional()
   @IsDate()
-  snapshotDate: Date = new Date()
+  @Type(() => Date)
+  snapshotDate: Date = new Date();
 
   @ApiProperty({
     required: false,
