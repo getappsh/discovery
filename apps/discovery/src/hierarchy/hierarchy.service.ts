@@ -1,21 +1,24 @@
-import { DeviceTypeEntity, PlatformEntity } from "@app/common/database/entities";
-import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeParams, PlatformDeviceTypeParams, PlatformDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
-import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { DeviceTypeEntity, MemberProjectEntity, PlatformEntity, ProjectEntity } from "@app/common/database/entities";
+import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeParams, DeviceTypeProjectParams, PlatformDeviceTypeParams, PlatformDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
+import { ProjectAccessService } from "@app/common/utils/project-access";
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ILike, Repository } from "typeorm";
 
 
 @Injectable()
-export class HierarchyService {
+export class HierarchyService implements ProjectAccessService {
   private readonly logger = new Logger(HierarchyService.name);
 
   constructor(
     @InjectRepository(PlatformEntity) private readonly platformRepo: Repository<PlatformEntity>,
     @InjectRepository(DeviceTypeEntity) private readonly deviceTypeRepo: Repository<DeviceTypeEntity>,
+    @InjectRepository(ProjectEntity) private readonly projectRepo: Repository<ProjectEntity>,
+    @InjectRepository(MemberProjectEntity) private readonly memberProjectRepo: Repository<MemberProjectEntity>,
+    private readonly jwtService: JwtService,
   ) {}
-
-
-  
+ 
   // Create Platform
   async createPlatform(dto: CreatePlatformDto): Promise<PlatformDto> {
     this.logger.debug(`Create platform: ${dto.name}`);
@@ -200,5 +203,85 @@ export class HierarchyService {
     await this.platformRepo.save(platform);
     
     return PlatformDto.fromEntity(platform);
+  }
+
+
+  // Add Project to Device Type
+  async addProjectToDeviceType(params: DeviceTypeProjectParams) {
+    this.logger.debug(`Add project: '${params.projectId}' to device type: '${params.deviceTypeName}'`);
+    const deviceType = await this.deviceTypeRepo.findOne({
+      where: { name: params.deviceTypeName },
+      relations: { projects: true },
+      select: { projects: { id: true } }
+    });
+    
+    if (!deviceType) {
+      throw new NotFoundException(`Device type: '${params.deviceTypeName}' not found`);
+    }
+
+    if (deviceType.projects.some(p => p.id === params.projectId)) {
+      throw new ConflictException(`Project: '${params.projectId}' already exists in device type: '${params.deviceTypeName}'`);
+    }
+
+    // Assuming ProjectEntity is imported and available
+    const project = await this.projectRepo.findOne({ where: { id: params.projectId } });
+    if (!project) {
+      throw new NotFoundException(`Project with ID: '${params.projectId}' not found`);
+    }
+
+    deviceType.projects.push(project);
+    await this.deviceTypeRepo.save(deviceType);
+    
+    return DeviceTypeDto.fromEntity(deviceType);
+  }
+
+  // Remove Project from Device Type
+  async removeProjectFromDeviceType(params: DeviceTypeProjectParams) {
+    this.logger.debug(`Remove project: '${params.projectId}' from device type: '${params.deviceTypeName}'`);
+    const deviceType = await this.deviceTypeRepo.findOne({
+      where: { name: params.deviceTypeName },
+      relations: { projects: true },
+      select: { projects: { id: true } }
+    });
+    
+    if (!deviceType) {
+      throw new NotFoundException(`Device type: '${params.deviceTypeName}' not found`);
+    }
+
+    const projectIndex = deviceType.projects.findIndex(p => p.id === params.projectId);
+    if (projectIndex === -1) {
+      throw new NotFoundException(`Project: '${params.projectId}' not found in device type: '${params.deviceTypeName}'`);
+    }
+
+    deviceType.projects.splice(projectIndex, 1);
+    await this.deviceTypeRepo.save(deviceType);
+
+    return DeviceTypeDto.fromEntity(deviceType);
+    
+  }
+ 
+  getMemberInProject(projectIdentifier: number | string,  email: string): Promise<MemberProjectEntity> {
+    this.logger.verbose(`Get member in project: ${projectIdentifier}, with email: ${email}`)
+
+    const projectCondition = typeof projectIdentifier === 'number'
+    ? { id: projectIdentifier }
+    : { name: projectIdentifier };
+
+    return this.memberProjectRepo.findOne({
+      relations: ['project', 'member'],
+      where: {
+        project: projectCondition,
+        member: { email: email }
+      }
+    }) as Promise<MemberProjectEntity>;
+  }
+  
+  async getProjectFromToken(token: string): Promise<ProjectEntity> {
+    const payload = this.jwtService.verify(token)
+    const project = await this.projectRepo.findOne({ where: { id: payload.data.projectId, tokens: { token: token, isActive: true } } })
+    if (!project) {
+      throw new ForbiddenException('Not Allowed in this project');
+    }
+    return project;
   }
 }

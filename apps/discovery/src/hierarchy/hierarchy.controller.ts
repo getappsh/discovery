@@ -1,9 +1,10 @@
 import { Controller, Logger } from "@nestjs/common";
 import { HierarchyService } from "./hierarchy.service";
 import { DevicesHierarchyTopics } from "@app/common/microservice-client/topics";
-import { CreateDeviceTypeDto, DeviceTypeParams, DeviceTypeDto, UpdateDeviceTypeDto, CreatePlatformDto, PlatformDto, PlatformParams, UpdatePlatformDto, PlatformDeviceTypeParams } from "@app/common/dto/devices-hierarchy";
+import { CreateDeviceTypeDto, DeviceTypeParams, DeviceTypeDto, UpdateDeviceTypeDto, CreatePlatformDto, PlatformDto, PlatformParams, UpdatePlatformDto, PlatformDeviceTypeParams, DeviceTypeProjectParams } from "@app/common/dto/devices-hierarchy";
 import { RpcPayload } from "@app/common/microservice-client";
 import { MessagePattern } from "@nestjs/microservices";
+import { ValidateProjectUserAccess } from "@app/common/utils/project-access";
 
 
 @Controller()
@@ -64,12 +65,24 @@ export class HierarchyController {
   }
 
   @MessagePattern(DevicesHierarchyTopics.ADD_DEVICE_TYPE_TO_PLATFORM)
-  addDeviceTypeToPlatform(@RpcPayload() params: PlatformDeviceTypeParams): Promise<PlatformDto> {
+  addDeviceTypeToPlatform(@RpcPayload() params: PlatformDeviceTypeParams){
     return this.hierarchyService.addDeviceTypeToPlatform(params);
   }
 
   @MessagePattern(DevicesHierarchyTopics.REMOVE_DEVICE_TYPE_FROM_PLATFORM)
-  removeDeviceTypeFromPlatform(@RpcPayload() params: PlatformDeviceTypeParams): Promise<PlatformDto> {
+  removeDeviceTypeFromPlatform(@RpcPayload() params: PlatformDeviceTypeParams){
     return this.hierarchyService.removeDeviceTypeFromPlatform(params);
+  }
+
+  @ValidateProjectUserAccess()
+  @MessagePattern(DevicesHierarchyTopics.ADD_PROJECT_TO_DEVICE_TYPE)
+  addProjectToDeviceType(@RpcPayload() params: DeviceTypeProjectParams): Promise<DeviceTypeDto> {
+    return this.hierarchyService.addProjectToDeviceType(params);
+  }
+
+  @ValidateProjectUserAccess()
+  @MessagePattern(DevicesHierarchyTopics.REMOVE_PROJECT_FROM_DEVICE_TYPE)
+  removeProjectFromDeviceType(@RpcPayload() params: DeviceTypeProjectParams): Promise<DeviceTypeDto> {
+    return this.hierarchyService.removeProjectFromDeviceType(params);
   }
 }
