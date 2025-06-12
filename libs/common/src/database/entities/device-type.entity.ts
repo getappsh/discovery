@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, ManyToMany, PrimaryColumn, UpdateDateColumn } from "typeorm";
+import { PlatformEntity } from "./platform.entity";
 
 @Entity("device_type")
 export class DeviceTypeEntity {
@@ -14,4 +15,7 @@ export class DeviceTypeEntity {
 
   @UpdateDateColumn({ name: "updated_at", type: "timestamptz", default: () => "CURRENT_TIMESTAMP(6)" })
   updatedAt: Date;
+
+  @ManyToMany(() => PlatformEntity, platform => platform.deviceTypes)
+  platforms: PlatformEntity[];
 }
