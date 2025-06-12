@@ -1,11 +1,11 @@
-import { DatabaseModule } from '@app/common';
+import { DatabaseModule, UploadJwtConfigService } from '@app/common';
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
-import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity } from '@app/common/database/entities';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -23,6 +23,8 @@ import { DeviceConfigService } from './device/device-config.service';
 import { JobsEntity } from '@app/common/database/entities/map-updatesCronJob';
 import { HierarchyController } from './hierarchy/hierarchy.controller';
 import { HierarchyService } from './hierarchy/hierarchy.service';
+import { PROJECT_ACCESS_SERVICE } from '@app/common/utils/project-access';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -37,13 +39,21 @@ import { HierarchyService } from './hierarchy/hierarchy.service';
     DatabaseModule,
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
-       OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity,
+       OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
         DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity
       ]),
     DeviceClientRepoModule,
-    MailModule
+    MailModule,
+    JwtModule.registerAsync({
+      useClass: UploadJwtConfigService
+    }),
   ],
   controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController],
-  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService],
+  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService,
+    {
+      provide: PROJECT_ACCESS_SERVICE,
+      useExisting: HierarchyService
+    }
+  ],
 })
 export class DiscoveryModule {}
