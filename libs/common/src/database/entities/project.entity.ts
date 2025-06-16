@@ -1,11 +1,10 @@
-import { Column, Entity, Index, JoinTable, ManyToMany, OneToMany } from "typeorm";
+import { Column, Entity, Index, ManyToMany, OneToMany } from "typeorm";
 import { BaseEntity } from "./base.entity";
 import { MemberProjectEntity } from "./member_project.entity";
 import { RegulationEntity } from "./regulation.entity";
 import { ReleaseEntity } from "./release.entity";
 import { ProjectTokenEntity } from "./project-token.entity";
 import { DocEntity } from "./document.entity";
-import { PlatformEntity } from "./platform.entity";
 import { ProjectType } from "./enums.entity";
 import { DeviceTypeEntity } from "./device-type.entity";
 
@@ -23,13 +22,6 @@ export class ProjectEntity extends BaseEntity{
     @OneToMany(() => ProjectTokenEntity, (token) => token.project)
     tokens: ProjectTokenEntity[];
 
-    @ManyToMany(() => PlatformEntity, { eager: true })
-    @JoinTable({
-        name: "project_platforms",
-        joinColumn: { name: "project_id", referencedColumnName: "id" },
-        inverseJoinColumn: { name: "platform_name", referencedColumnName: "name" },
-    })
-    platforms: PlatformEntity[];
 
     @OneToMany(() => RegulationEntity, regulation => regulation.project)
     regulations: RegulationEntity[]
