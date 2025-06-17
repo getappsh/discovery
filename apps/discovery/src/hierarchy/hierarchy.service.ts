@@ -46,10 +46,10 @@ export class HierarchyService implements ProjectAccessService {
   }
 
   async getPlatform(params: PlatformParams): Promise<PlatformDto> {
-    this.logger.debug(`Get platform with name: ${params.name}`);
-    const platform = await this.platformRepo.findOneBy({ name: params.name });
+    this.logger.debug(`Get platform: ${params.platformId}`);
+    const platform = await this.platformRepo.findOneBy({ id: params.platformId });
     if (!platform) {
-      this.logger.warn(`Platform with name ${params.name} not found`);
+      this.logger.warn(`Platform with id ${params.platformId} not found`);
       throw new NotFoundException('Platform not found');
     }
     return PlatformDto.fromEntity(platform);
@@ -63,8 +63,8 @@ export class HierarchyService implements ProjectAccessService {
 
   // Update Platform
   async updatePlatform(dto: UpdatePlatformDto): Promise<PlatformDto> {
-    this.logger.debug(`Update platform: ${dto.name}`);
-    const platform = await this.platformRepo.findOneBy({ name: dto.name });
+    this.logger.debug(`Update platform: ${dto.id}`);
+    const platform = await this.platformRepo.findOneBy({ id: dto.id });
     if (!platform) {
       throw new NotFoundException('Platform not found');
     }
@@ -72,20 +72,28 @@ export class HierarchyService implements ProjectAccessService {
     platform.description = dto.description || platform.description;
     platform.os = dto.os || platform.os;
 
-    await this.platformRepo.save(platform);
+    try{
+      const savedPlatform = await this.platformRepo.save(platform);
+      return PlatformDto.fromEntity(savedPlatform);
+    }catch (error) {
+      this.logger.error(`Error while saving platform: ${error}`);
+      if (error.code === '23505') { // Unique constraint violation error code for PostgreSQL
+        throw new ConflictException('Platform name already exists');
+      }
+      throw error;
+    }
 
-    return this.getPlatform({ name: platform.name });
   }
 
   // Delete Platform
   async deletePlatform(params: PlatformParams): Promise<string> {
-    this.logger.debug(`Delete platform with name: ${params.name}`);
-    const platform = await this.platformRepo.findOneBy({ name: params.name });
+    this.logger.debug(`Delete platform: ${params.platformId}`);
+    const platform = await this.platformRepo.findOneBy({ id: params.platformId });
     if (!platform) {
       throw new NotFoundException('Platform not found');
     }
     await this.platformRepo.remove(platform);
-    return `Platform ${params.name} deleted successfully`;
+    return `Platform ${params.platformId} deleted successfully`;
   }
 
 
@@ -115,10 +123,10 @@ export class HierarchyService implements ProjectAccessService {
 
   // Get Device Type by Name
   async getDeviceType(params: DeviceTypeParams): Promise<DeviceTypeDto> {
-    this.logger.debug(`Get device type with name: ${params.name}`);
-    const deviceType = await this.deviceTypeRepo.findOneBy({ name: params.name });
+    this.logger.debug(`Get device type: ${params.deviceTypeId}`);
+    const deviceType = await this.deviceTypeRepo.findOneBy({ id: params.deviceTypeId });
     if (!deviceType) {
-      throw new NotFoundException('Device type not found');
+      throw new NotFoundException(`Device type: ${params.deviceTypeId} not found`);
     }
     return DeviceTypeDto.fromEntity(deviceType);
   }
@@ -132,51 +140,62 @@ export class HierarchyService implements ProjectAccessService {
 
   // Update Device Type
   async updateDeviceType(dto: UpdateDeviceTypeDto): Promise<DeviceTypeDto> {
-    this.logger.debug(`Update device type: ${dto.name}`);
-    const deviceType = await this.deviceTypeRepo.findOneBy({ name: dto.name });
+    this.logger.debug(`Update device type: ${dto.id}`);
+    const deviceType = await this.deviceTypeRepo.findOneBy({ id: dto.id });
     if (!deviceType) {
       throw new NotFoundException('Device type not found');
     }
+    deviceType.name = dto.name ?? deviceType.name;
     deviceType.description = dto.description ?? deviceType.description;
-    await this.deviceTypeRepo.save(deviceType);
-    return this.getDeviceType({ name: deviceType.name });
+
+    try {
+      const savedDeviceType = await this.deviceTypeRepo.save(deviceType);
+      return DeviceTypeDto.fromEntity(savedDeviceType);
+    } catch (error) {
+      this.logger.error(`Error while saving device type: ${error}`);
+      if (error.code === '23505') {
+        throw new ConflictException('Device type name already exists');
+      }
+      throw error;
+    }
+    
   }
 
   // Delete Device Type
   async deleteDeviceType(params: DeviceTypeParams): Promise<string> {
-    this.logger.debug(`Delete device type with name: ${params.name}`);
-    const deviceType = await this.deviceTypeRepo.findOneBy({ name: params.name });
+    this.logger.debug(`Delete device type: ${params.deviceTypeId}`);
+    const deviceType = await this.deviceTypeRepo.findOneBy({ id: params.deviceTypeId });
     if (!deviceType) {
       throw new NotFoundException('Device type not found');
     }
     await this.deviceTypeRepo.remove(deviceType);
-    return `Device type ${params.name} deleted successfully`;
+    return `Device type ${params.deviceTypeId} deleted successfully`;
   }
 
   async getPlatformHierarchy(params: PlatformParams): Promise<PlatformHierarchyDto> {
-    this.logger.debug(`Getting full hierarchy tree for platform: ${params.name}`);
+    this.logger.debug(`Getting full hierarchy tree for platform: ${params.platformId}`);
     const platform = await this.platformRepo.findOne({ 
-      where: { name: params.name },
+      where: { id: params.platformId },
       relations: { deviceTypes: {projects: true} }, 
-      select: { deviceTypes: { name: true, projects: {id: true, name: true} } } 
+      select: { deviceTypes: { id: true, name: true, projects: {id: true, name: true} } } 
     });
 
     if (!platform) {
-      throw new NotFoundException(`Platform: '${params.name}' not found`);
+      throw new NotFoundException(`Platform: '${params.platformId}' not found`);
     }
     
     return PlatformHierarchyDto.fromPlatformEntity(platform);
   }
 
   async getDeviceTypeHierarchy(params: DeviceTypeParams): Promise<DeviceTypeHierarchyDto> {
-    this.logger.debug(`Getting full hierarchy tree for device type: ${params.name}`);
+    this.logger.debug(`Getting full hierarchy tree for device type: ${params.deviceTypeId}`);
     const deviceType = await this.deviceTypeRepo.findOne({ 
-      where: { name: params.name },
+      where: { id: params.deviceTypeId },
       relations: { projects: true }, 
       select: { projects: {id: true, name: true} } 
     });
     if (!deviceType) {
-      throw new NotFoundException(`Device type: '${params.name}' not found`);
+      throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
     }
     return DeviceTypeHierarchyDto.fromDeviceTypeEntity(deviceType);
   }
@@ -184,71 +203,71 @@ export class HierarchyService implements ProjectAccessService {
 
   // add Device Type to Platform
   async addDeviceTypeToPlatform(params: PlatformDeviceTypeParams){
-    this.logger.debug(`Add device type: '${params.deviceTypeName}' to platform: '${params.platformName}'`);
+    this.logger.debug(`Add device type: '${params.deviceTypeId}' to platform: '${params.platformId}'`);
     const platform = await this.platformRepo.findOne({
-      where: { name: params.platformName }, 
+      where: { id: params.platformId }, 
       relations: { deviceTypes: true },
-      select: {deviceTypes: {name: true}}
+      select: {deviceTypes: {id: true}}
     });
     if (!platform) {
-      throw new NotFoundException(`Platform: '${params.platformName}' not found`);
+      throw new NotFoundException(`Platform: '${params.platformId}' not found`);
     }
 
-    if (platform.deviceTypes.some(dt => dt.name === params.deviceTypeName)) {
-      throw new ConflictException(`Device type: '${params.deviceTypeName}' already exists in platform: '${params.platformName}'`);
+    if (platform.deviceTypes.some(dt => dt.id === params.deviceTypeId)) {
+      throw new ConflictException(`Device type: '${params.deviceTypeId}' already exists in platform: '${params.platformId}'`);
     }
     
-    const deviceType = await this.deviceTypeRepo.findOneBy({ name: params.deviceTypeName });
+    const deviceType = await this.deviceTypeRepo.findOneBy({ id: params.deviceTypeId });
     if (!deviceType) {
-      throw new NotFoundException(`Device type: '${params.deviceTypeName}' not found`);
+      throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
     }
     
     platform.deviceTypes.push(deviceType);
     await this.platformRepo.save(platform);
     
-    return this.getPlatformHierarchy({ name: params.platformName });
+    return this.getPlatformHierarchy({ platformId: params.platformId });
   }
 
 
   // remove Device Type from Platform
   async removeDeviceTypeFromPlatform(params: PlatformDeviceTypeParams) {
-    this.logger.debug(`Remove device type: '${params.deviceTypeName}' from platform: '${params.platformName}'`);
+    this.logger.debug(`Remove device type: '${params.deviceTypeId}' from platform: '${params.platformId}'`);
     const platform = await this.platformRepo.findOne({
-      where: { name: params.platformName }, 
+      where: { id: params.platformId }, 
       relations: { deviceTypes: true },
-      select: {deviceTypes: {name: true}}
+      select: {deviceTypes: {id: true}}
     });
     if (!platform) {
-      throw new NotFoundException(`Platform: '${params.platformName}' not found`);
+      throw new NotFoundException(`Platform: '${params.platformId}' not found`);
     }
 
-    const deviceTypeIndex = platform.deviceTypes.findIndex(dt => dt.name === params.deviceTypeName);
+    const deviceTypeIndex = platform.deviceTypes.findIndex(dt => dt.id === params.deviceTypeId);
     if (deviceTypeIndex === -1) {
-      throw new NotFoundException(`Device type: '${params.deviceTypeName}' not found in platform: '${params.platformName}'`);
+      throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found in platform: '${params.platformId}'`);
     }
 
     platform.deviceTypes.splice(deviceTypeIndex, 1);
     await this.platformRepo.save(platform);
     
-    return this.getPlatformHierarchy({ name: params.platformName });
+    return this.getPlatformHierarchy({ platformId: params.platformId });
   }
 
 
   // Add Project to Device Type
   async addProjectToDeviceType(params: DeviceTypeProjectParams) {
-    this.logger.debug(`Add project: '${params.projectId}' to device type: '${params.deviceTypeName}'`);
+    this.logger.debug(`Add project: '${params.projectId}' to device type: '${params.deviceTypeId}'`);
     const deviceType = await this.deviceTypeRepo.findOne({
-      where: { name: params.deviceTypeName },
+      where: { id: params.deviceTypeId },
       relations: { projects: true },
       select: { projects: { id: true } }
     });
     
     if (!deviceType) {
-      throw new NotFoundException(`Device type: '${params.deviceTypeName}' not found`);
+      throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
     }
 
     if (deviceType.projects.some(p => p.id === params.projectId)) {
-      throw new ConflictException(`Project: '${params.projectId}' already exists in device type: '${params.deviceTypeName}'`);
+      throw new ConflictException(`Project: '${params.projectId}' already exists in device type: '${params.deviceTypeId}'`);
     }
 
     // Assuming ProjectEntity is imported and available
@@ -260,31 +279,31 @@ export class HierarchyService implements ProjectAccessService {
     deviceType.projects.push(project);
     await this.deviceTypeRepo.save(deviceType);
     
-    return this.getDeviceTypeHierarchy({ name: params.deviceTypeName });
+    return this.getDeviceTypeHierarchy({ deviceTypeId: params.deviceTypeId });
   }
 
   // Remove Project from Device Type
   async removeProjectFromDeviceType(params: DeviceTypeProjectParams) {
-    this.logger.debug(`Remove project: '${params.projectId}' from device type: '${params.deviceTypeName}'`);
+    this.logger.debug(`Remove project: '${params.projectId}' from device type: '${params.deviceTypeId}'`);
     const deviceType = await this.deviceTypeRepo.findOne({
-      where: { name: params.deviceTypeName },
+      where: { id: params.deviceTypeId },
       relations: { projects: true },
       select: { projects: { id: true } }
     });
     
     if (!deviceType) {
-      throw new NotFoundException(`Device type: '${params.deviceTypeName}' not found`);
+      throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
     }
 
     const projectIndex = deviceType.projects.findIndex(p => p.id === params.projectId);
     if (projectIndex === -1) {
-      throw new NotFoundException(`Project: '${params.projectId}' not found in device type: '${params.deviceTypeName}'`);
+      throw new NotFoundException(`Project: '${params.projectId}' not found in device type: '${params.deviceTypeId}'`);
     }
 
     deviceType.projects.splice(projectIndex, 1);
     await this.deviceTypeRepo.save(deviceType);
 
-    return this.getDeviceTypeHierarchy({ name: params.deviceTypeName });
+    return this.getDeviceTypeHierarchy({ deviceTypeId: params.deviceTypeId });
   }
  
   getMemberInProject(projectIdentifier: number | string,  email: string): Promise<MemberProjectEntity> {
