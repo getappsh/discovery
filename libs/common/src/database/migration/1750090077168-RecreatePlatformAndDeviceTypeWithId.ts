@@ -20,9 +20,21 @@ export class RecreatePlatformAndDeviceTypeWithId1750090077168 implements Migrati
         await queryRunner.query(`ALTER TABLE "device_type_project" ADD CONSTRAINT "FK_0c4ab58466130b044b9fa593b34" FOREIGN KEY ("project_id") REFERENCES "project"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "platform_device_type" ADD CONSTRAINT "FK_54cf8d0f71f944b36489a5242c5" FOREIGN KEY ("platform_id") REFERENCES "platform"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
         await queryRunner.query(`ALTER TABLE "platform_device_type" ADD CONSTRAINT "FK_86a2e27320d8434d971ea976a5e" FOREIGN KEY ("device_type_id") REFERENCES "device_type"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+
+        await queryRunner.query(`CREATE TABLE "project_platforms" ("project_id" integer NOT NULL, "platform_name" character varying NOT NULL, CONSTRAINT "PK_77a1b99e4bfc91bd94a40710092" PRIMARY KEY ("project_id", "platform_name"))`);
+        await queryRunner.query(`CREATE INDEX "IDX_a606bc2e8039f04412465a409d" ON "project_platforms" ("project_id") `);
+        await queryRunner.query(`CREATE INDEX "IDX_e9cfc0929860514179311529de" ON "project_platforms" ("platform_name") `);
+        await queryRunner.query(`ALTER TABLE "project_platforms" ADD CONSTRAINT "FK_a606bc2e8039f04412465a409d0" FOREIGN KEY ("project_id") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
+        await queryRunner.query(`ALTER TABLE "project_platforms" ADD CONSTRAINT "FK_e9cfc0929860514179311529ded" FOREIGN KEY ("platform_name") REFERENCES "platform"("name") ON DELETE CASCADE ON UPDATE CASCADE`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`ALTER TABLE "project_platforms" DROP CONSTRAINT "FK_e9cfc0929860514179311529ded"`);
+        await queryRunner.query(`ALTER TABLE "project_platforms" DROP CONSTRAINT "FK_a606bc2e8039f04412465a409d0"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_e9cfc0929860514179311529de"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_a606bc2e8039f04412465a409d"`);
+        await queryRunner.query(`DROP TABLE "project_platforms"`);
+
         await queryRunner.query(`ALTER TABLE "platform_device_type" DROP CONSTRAINT "FK_86a2e27320d8434d971ea976a5e"`);
         await queryRunner.query(`ALTER TABLE "platform_device_type" DROP CONSTRAINT "FK_54cf8d0f71f944b36489a5242c5"`);
         await queryRunner.query(`ALTER TABLE "device_type_project" DROP CONSTRAINT "FK_0c4ab58466130b044b9fa593b34"`);
