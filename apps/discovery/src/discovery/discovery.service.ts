@@ -60,9 +60,6 @@ export class DiscoveryService {
     if (dto.deviceType) device.deviceType = await this.deviceTypeRepo.findOne({ where: { name: dto.deviceType } }) ?? undefined
     if (parent) device.parent = parent
 
-    // device.platforms will be remove in the future, use instead device.platform
-    device.platforms = await this.getOrCreatePlatforms(dto?.softwareData?.platforms) ?? []
-
     this.logger.debug("save device")
     return await this.deviceRepo.save(device)
   }
@@ -100,17 +97,6 @@ export class DiscoveryService {
     if (dto.platform?.devices?.length) {
       dto.platform.devices.forEach(d => this.discoveryDeviceContext(d, device))
     }
-  }
-
-  private async getOrCreatePlatforms(platforms?: string[]) {
-    this.logger.debug(`Get or create platforms: ${JSON.stringify(platforms)}`)
-    if (!platforms) {
-      return
-    }
-    if (platforms.length === 0) {
-      return [];
-    }
-    return this.platformRepo.save(platforms.map(platform => { return { name: platform } }));
   }
 
   async discoveryMessage(discovery: DiscoveryMessageDto) {
