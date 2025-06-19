@@ -32,6 +32,14 @@ export class HierarchyService implements ProjectAccessService {
     platform.name = dto.name;
     platform.description = dto.description;
     platform.os = dto.os;
+    platform.cpuArchitecture = dto.cpuArchitecture;
+    platform.cpuCount = dto.cpuCount;
+    platform.memoryMb = dto.memoryMb;
+    platform.diskGb = dto.diskGb;
+    platform.diskType = dto.diskType;
+    platform.networkType = dto.networkType;
+    platform.imageId = dto.imageId;
+    platform.metadata = dto.metadata;
 
     try{
       const savedPlatform = await this.platformRepo.save(platform);
@@ -68,10 +76,7 @@ export class HierarchyService implements ProjectAccessService {
     if (!platform) {
       throw new NotFoundException('Platform not found');
     }
-    platform.name = dto.name || platform.name;
-    platform.description = dto.description || platform.description;
-    platform.os = dto.os || platform.os;
-
+    Object.assign(platform, dto);
     try{
       const savedPlatform = await this.platformRepo.save(platform);
       return PlatformDto.fromEntity(savedPlatform);
@@ -108,6 +113,15 @@ export class HierarchyService implements ProjectAccessService {
     const deviceType = new DeviceTypeEntity();
     deviceType.name = dto.name;
     deviceType.description = dto.description;
+    deviceType.os = dto.os;
+    deviceType.cpuArchitecture = dto.cpuArchitecture;
+    deviceType.cpuCount = dto.cpuCount;
+    deviceType.memoryMb = dto.memoryMb;
+    deviceType.diskGb = dto.diskGb;
+    deviceType.diskType = dto.diskType;
+    deviceType.networkType = dto.networkType;
+    deviceType.imageId = dto.imageId;
+    deviceType.metadata = dto.metadata;
 
     try {
       const saved = await this.deviceTypeRepo.save(deviceType);
@@ -145,9 +159,7 @@ export class HierarchyService implements ProjectAccessService {
     if (!deviceType) {
       throw new NotFoundException('Device type not found');
     }
-    deviceType.name = dto.name ?? deviceType.name;
-    deviceType.description = dto.description ?? deviceType.description;
-
+    Object.assign(deviceType, dto);
     try {
       const savedDeviceType = await this.deviceTypeRepo.save(deviceType);
       return DeviceTypeDto.fromEntity(savedDeviceType);
