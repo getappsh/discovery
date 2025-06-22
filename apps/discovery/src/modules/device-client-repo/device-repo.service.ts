@@ -47,7 +47,7 @@ export class DeviceRepoService {
       throw new BadRequestException(mes)
     }
     this.logger.log(`Save props for device ${device.ID}`)
-    if (device.name !== undefined) {
+    if (p.name !== undefined) {
       device.name = p.name
     }
     const savedDevice = await this.deviceRepo.save(device)
