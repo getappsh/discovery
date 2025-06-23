@@ -4,6 +4,7 @@ import { Injectable, Logger, InternalServerErrorException } from "@nestjs/common
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { DeviceRepoService } from "../modules/device-client-repo/device-repo.service";
+import { AppError, ErrorCode } from "@app/common/dto/error";
 
 @Injectable()
 export class GroupService {
@@ -104,32 +105,33 @@ export class GroupService {
     let groupEntity = await this.groupRepo.findOneBy({ id: group.id })
     this.logger.debug(`found group ${JSON.stringify(groupEntity)}`)
 
-    if (groupEntity) {
-      if (group.devices) {
-        // TODO if device don't have a OrgUID number
-        const uids = (await this.deviceRepoS.getDeviceOrgId(group.devices)).map(uid => {
-          uid.group = groupEntity!
-          return uid
-        })
+    if (!groupEntity) throw new AppError(ErrorCode.GROUP_NOT_FOUND);
 
-        await this.orgUid.save(uids);
-      }
+    if (group.devices) {
+      // TODO if device don't have a OrgUID number
+      const uids = (await this.deviceRepoS.getDeviceOrgId(group.devices)).map(uid => {
+        uid.group = groupEntity!
+        return uid
+      })
 
-      if (group.groups) {
-        // TODO validate that the child group isn't one of its parents or grandparents 
-        const groups = (await this.getGroupEntityById(group.groups)).map(g => {
-          g.parent = groupEntity!
-          return g
-        })
-        await this.groupRepo.save(groups)
-      }
-      this.logger.debug(`group to save ${JSON.stringify(groupEntity)}`)
-
-      let res = await this.groupRepo.save(groupEntity);
-
-      this.logger.debug(JSON.stringify(res))
-      return ChildGroupDto.fromDevicesGroupEntity(res)
+      await this.orgUid.save(uids);
     }
+
+    if (group.groups) {
+      // TODO validate that the child group isn't one of its parents or grandparents 
+      const groups = (await this.getGroupEntityById(group.groups)).map(g => {
+        g.parent = groupEntity!
+        return g
+      })
+      await this.groupRepo.save(groups)
+    }
+    this.logger.debug(`group to save ${JSON.stringify(groupEntity)}`)
+
+    let res = await this.groupRepo.save(groupEntity);
+
+    this.logger.debug(JSON.stringify(res))
+    return ChildGroupDto.fromDevicesGroupEntity(res)
+
   }
 
   async getGroupEntityById(group: number | number[]): Promise<OrgGroupEntity[]> {

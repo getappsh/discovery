@@ -132,9 +132,7 @@ export class DiscoveryService {
 
   }
 
-  private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]) {
-    console.log("here");
-    
+  private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]) {    
     const compsCatalogId = Array.from(new Set(compsState.map(comp => comp.catalogId)));
 
     let deviceComps: DeviceComponentStateDto[] = []

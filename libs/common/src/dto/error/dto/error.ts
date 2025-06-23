@@ -28,6 +28,9 @@ export enum ErrorCode {
   MAP_REQUESTED_IN_PROCESSING = 'MAP.requestInProgress',
   MAP_AREA_TOO_LARGE = "MAP.areaTooLarge",
   MAP_AREA_TOO_SMALL = "MAP.areaTooSmall",
+  
+  // groups
+  GROUP_NOT_FOUND = "GROUP_NOT_FOUND",
 }
 
 export class ErrorDto {
@@ -53,7 +56,9 @@ export class ErrorDto {
       "`MAP.exportMapFailed`: Some error occurs when import map <br /> " +
       "`MAP.requestInProgress`: Delivery was already requested and in processing! <br /> " +
       "`MAP.areaTooLarge`: Area too large to distribute, reduce request size and try again <br /> " +
-      "`MAP.areaTooSmall`: Area too small to distribute, increase request size and try again . ",
+      "`MAP.areaTooSmall`: Area too small to distribute, increase request size and try again . <br /> " +
+
+      "`GROUP_NOT_FOUND`: Group with the given id was not found.",
     required: false
   })
   @IsEnum(ErrorCode)
@@ -77,6 +82,17 @@ export class ErrorDto {
     errorDto.errorCode = error.errorCode;
     errorDto.message = error.message;
     return errorDto
+  }
+}
+
+export class AppError extends Error {
+  errorCode: ErrorCode;
+
+  constructor(errorCode: ErrorCode, message?: string) {
+    super(message);
+    this.name = "AppError";
+    this.errorCode = errorCode;
+    Object.setPrototypeOf(this, AppError.prototype);
   }
 }
 
