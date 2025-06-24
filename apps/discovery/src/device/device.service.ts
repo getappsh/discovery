@@ -30,13 +30,10 @@ export class DeviceService {
     @InjectRepository(DeviceMapStateEntity) private readonly deviceMapRepo: Repository<DeviceMapStateEntity>,
     @InjectRepository(DeviceComponentEntity) private readonly deviceCompRepo: Repository<DeviceComponentEntity>,
     @Inject(MicroserviceName.OFFERING_SERVICE) private readonly offeringClient: MicroserviceClient,
-
-
     private deviceRepoS: DeviceRepoService
-  ) {
-  }
+  ) { }
 
-  async getRegisteredDevices(groups: string[]): Promise<DeviceDto[]> {
+  async getRegisteredDevices(groups?: string[]): Promise<DeviceDto[]> {
     this.logger.debug(`Get all registered devices, for groups ${groups}`);
     let groupsIntArray = groups?.map(Number).filter(num => !isNaN(num))
     if (groupsIntArray) {
@@ -67,7 +64,7 @@ export class DeviceService {
     return Array.from(ids)
   }
 
-  async getDevicesSoftwareStatisticInfo(params: { [key: string]: string[] }): Promise<DevicesStatisticInfo> {
+  async getDevicesSoftwareStatisticInfo(params: { [key: string]: string[] | undefined }): Promise<DevicesStatisticInfo> {
 
     const groups = params.groups
     const software = params.software
@@ -122,7 +119,7 @@ export class DeviceService {
     return info
   }
 
-  async getDevicesMapStatisticInfo(params: { [key: string]: string[] }) {
+  async getDevicesMapStatisticInfo(params: { [key: string]: string[] | undefined }) {
 
     const groups = params.groups
     const map = params.map
