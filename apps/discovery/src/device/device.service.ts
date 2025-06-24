@@ -51,11 +51,28 @@ export class DeviceService {
 
   async getDeviceDetails(deviceId: string): Promise<DeviceDto> {
 
-    const devices = await this.deviceRepo.findOne({
-      relations: { orgUID: { group: true } },
-      where: { ID: deviceId },
-      order: { createdDate: "DESC" }
-    })
+    const devices = await this.deviceRepo.createQueryBuilder('device')
+      .leftJoinAndSelect('device.parent', 'parent')
+      .leftJoinAndSelect('device.orgUID', 'org')
+      .leftJoinAndSelect('org.group', 'group')
+      .leftJoinAndSelect('device.platform', 'platform')
+      .leftJoinAndSelect('device.deviceType', 'deviceType')
+      .leftJoinAndSelect('device.children', 'children')
+      .select([
+        'device',
+        'parent.ID',
+        'children.ID',
+        'org.UID',
+        'group.id',
+        'group.name',
+        'platform.name',
+        'platform.id',
+        'deviceType.name',
+        'deviceType.id'
+      ])
+      .where('device.ID = :deviceId', { deviceId })
+      .getOne();      
+
 
     if (devices) {
       return (await this.deviceToDevicesDto([devices]))[0];

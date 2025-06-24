@@ -54,6 +54,9 @@ export class DeviceEntity {
   @JoinColumn({ name: "parent" })
   parent?: DeviceEntity;
 
+  @OneToMany(() => DeviceEntity, device => device.parent)
+  children?: DeviceEntity[];
+
   @ManyToMany(() => ReleaseEntity, releaseEntity => releaseEntity.devices, {
     cascade: true
   })
