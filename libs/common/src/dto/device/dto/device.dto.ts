@@ -46,19 +46,19 @@ export class DeviceDto {
   @ApiProperty({required: false})
   @IsString()
   @IsOptional()
-  groupName: string
+  groupName?: string
 
 
   @ApiProperty({required: false})
   @IsNumber()
   @IsOptional()
-  groupId: number
+  groupId?: number
 
 
   @ApiProperty({required: false})
   @IsNumber()
   @IsOptional()
-  uid: number
+  uid?: number
 
   @ApiProperty({required: false, type: 'string', isArray: true})
   formations: string[]
