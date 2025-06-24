@@ -30,6 +30,7 @@ export class CustomRpcExceptionFilter implements RpcExceptionFilter<RpcException
         errorCode: exception.errorCode,
         message: exception.message,
       };
+      status_code = exception.statusCode || 500;
     }
 
     const error = new Error();

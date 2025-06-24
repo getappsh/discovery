@@ -28,10 +28,13 @@ export enum ErrorCode {
   MAP_REQUESTED_IN_PROCESSING = 'MAP.requestInProgress',
   MAP_AREA_TOO_LARGE = "MAP.areaTooLarge",
   MAP_AREA_TOO_SMALL = "MAP.areaTooSmall",
+
+  // devices
+  DEVICE_NOT_FOUND = "DEVICE.notFound",
   
   // groups
-  GROUP_NOT_FOUND = "GROUP_NOT_FOUND",
-  GROUP_NOT_ALLOWED_TO_ADD = "GROUP_NOT_ALLOWED_TO_ADD",
+  GROUP_NOT_FOUND = "GROUP.notFound",
+  GROUP_NOT_ALLOWED_TO_ADD = "GROUP.notAllowedToAdd",
 }
 
 export class ErrorDto {
@@ -58,6 +61,7 @@ export class ErrorDto {
       "`MAP.requestInProgress`: Delivery was already requested and is processing.<br/>" +
       "`MAP.areaTooLarge`: Area too large to distribute, reduce request size and try again.<br/>" +
       "`MAP.areaTooSmall`: Area too small to distribute, increase request size and try again.<br/>" +
+      "`DEVICE.notFound`: Device with given id not found.<br/>" +
       "`GROUP_NOT_FOUND`: Group with the given id was not found.<br/>" +
       "`GROUP_NOT_ALLOWED_TO_ADD`: Not allowed to add to the group, see message for cause.",
     required: false
@@ -88,11 +92,13 @@ export class ErrorDto {
 
 export class AppError extends Error {
   errorCode: ErrorCode;
+  statusCode?: number;
 
-  constructor(errorCode: ErrorCode, message?: string) {
+  constructor(errorCode: ErrorCode, message?: string, statusCode?: number) {
     super(message);
     this.name = "AppError";
     this.errorCode = errorCode;
+    this.statusCode = statusCode;
     Object.setPrototypeOf(this, AppError.prototype);
   }
 }
