@@ -52,8 +52,8 @@ export class DeviceRepoService {
     }
     const savedDevice = await this.deviceRepo.save(device)
 
-    let orgId: OrgUIDEntity | null;
     if (p.orgUID) {
+      let orgId: OrgUIDEntity | null;
       if (p.orgUID != null) {
         // TODO handle duplicate case
         orgId = this.orgIdEntity.create()

@@ -31,6 +31,7 @@ export enum ErrorCode {
   
   // groups
   GROUP_NOT_FOUND = "GROUP_NOT_FOUND",
+  GROUP_NOT_ALLOWED_TO_ADD = "GROUP_NOT_ALLOWED_TO_ADD",
 }
 
 export class ErrorDto {
