@@ -51,6 +51,8 @@ export class DeviceService {
 
   async getDeviceDetails(deviceId: string): Promise<DeviceDto> {
 
+    this.logger.log(`Get device details for device ID: '${deviceId}'`);
+
     const devices = await this.deviceRepo.createQueryBuilder('device')
       .leftJoinAndSelect('device.parent', 'parent')
       .leftJoinAndSelect('device.orgUID', 'org')
@@ -71,7 +73,7 @@ export class DeviceService {
         'deviceType.id'
       ])
       .where('device.ID = :deviceId', { deviceId })
-      .getOne();      
+      .getOne();
 
 
     if (devices) {

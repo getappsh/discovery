@@ -96,8 +96,6 @@ export class DeviceDto {
     device.bandwidth = discoveryE?.situationalDevice.bandwidth;
     device.operativeState = discoveryE?.situationalDevice.operativeState;
 
-    console.log(deviceE);
-
     // Group relation
     device.uid = deviceE?.orgUID?.UID;
     device.groupId = deviceE?.orgUID?.group?.id;
