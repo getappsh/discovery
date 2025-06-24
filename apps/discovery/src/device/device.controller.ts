@@ -1,6 +1,6 @@
 import { DeviceTopics, DeviceTopicsEmit } from '@app/common/microservice-client/topics';
 import { Controller, Logger } from '@nestjs/common';
-import { EventPattern, MessagePattern} from '@nestjs/microservices';
+import { EventPattern, MessagePattern } from '@nestjs/microservices';
 import { DeviceMapDto, DeviceMapStateDto, DeviceRegisterDto, DevicesStatisticInfo } from '@app/common/dto/device';
 import { DeviceContentResDto } from '@app/common/dto/device';
 import { MapDevicesDto } from '@app/common/dto/map/dto/all-maps.dto';
@@ -31,17 +31,22 @@ export class DeviceController {
   }
 
   @MessagePattern(DeviceTopics.All_DEVICES)
-  getRegisteredDevices(@RpcPayload('groups') groups: string[]): Promise<DeviceDto[]> {
+  getRegisteredDevices(@RpcPayload('groups') groups?: string[]): Promise<DeviceDto[]> {
     return this.deviceService.getRegisteredDevices(groups)
   }
 
+  @MessagePattern(DeviceTopics.GET_DEVICE)
+  getDeviceDetails(@RpcPayload() deviceId: string): Promise<DeviceDto | DeviceDto[]> {
+    return this.deviceService.getDeviceDetails(deviceId)
+  }
+
   @MessagePattern(DeviceTopics.DEVICES_SOFTWARE_STATISTIC_INFO)
-  getDevicesSoftwareStatisticInfo(@RpcPayload('params') params: { [key: string]: string[] }): Promise<DevicesStatisticInfo> {
+  getDevicesSoftwareStatisticInfo(@RpcPayload('params') params: { [key: string]: string[] | undefined }): Promise<DevicesStatisticInfo> {
     return this.deviceService.getDevicesSoftwareStatisticInfo(params)
   }
-  
+
   @MessagePattern(DeviceTopics.DEVICES_MAP_STATISTIC_INFO)
-  getDevicesMapStatisticInfo(@RpcPayload('params') params: { [key: string]: string[] }): Promise<DevicesStatisticInfo> {
+  getDevicesMapStatisticInfo(@RpcPayload('params') params: { [key: string]: string[] | undefined }): Promise<DevicesStatisticInfo> {
     return this.deviceService.getDevicesMapStatisticInfo(params)
   }
 
@@ -118,14 +123,14 @@ export class DeviceController {
     return "Device service is running successfully. Version: " + version
   }
 
-  private readImageVersion(){
+  private readImageVersion() {
     let version = 'unknown'
-    try{
-      version = fs.readFileSync('NEW_TAG.txt','utf8');
-    }catch(error){
+    try {
+      version = fs.readFileSync('NEW_TAG.txt', 'utf8');
+    } catch (error) {
       this.logger.error(`Unable to read image version - error: ${error}`)
     }
     return version
   }
-  
+
 }

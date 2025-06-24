@@ -2,7 +2,7 @@ import { DeviceEntity, OrgGroupEntity, OrgUIDEntity } from "@app/common/database
 import { CreateDevicesGroupDto, ChildGroupDto, EditDevicesGroupDto, SetChildInGroupDto, ChildGroupRawDto, GroupResponseDto } from "@app/common/dto/devices-group";
 import { Injectable, Logger, InternalServerErrorException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, IsNull, Not, Repository } from "typeorm";
 import { DeviceRepoService } from "../modules/device-client-repo/device-repo.service";
 import { AppError, ErrorCode } from "@app/common/dto/error";
 
@@ -108,11 +108,26 @@ export class GroupService {
     if (!groupEntity) throw new AppError(ErrorCode.GROUP_NOT_FOUND);
 
     if (group.devices) {
+      const dvcWithDvcParent = await this.deviceRepo.find({ where: { ID: In(group.devices), parent: Not(IsNull()) } })
+      if (dvcWithDvcParent.length > 0) {
+        const msg = `Devices [${dvcWithDvcParent.map(d => d.ID).join(", ")}] are not allowed to be added to a group, because they are related to another device (have a parent device).`;
+        this.logger.error(msg);
+        throw new AppError(ErrorCode.GROUP_NOT_ALLOWED_TO_ADD, msg);
+      }
+
       // TODO if device don't have a OrgUID number
       const uids = (await this.deviceRepoS.getDeviceOrgId(group.devices)).map(uid => {
         uid.group = groupEntity!
         return uid
       })
+
+      const uidDeviceIds = uids.map(u => u.device?.ID);
+      const missingDevices = group.devices.filter(d => !uidDeviceIds.includes(d));
+      if (missingDevices.length > 0) {
+        const errorMsg = `Devices [${missingDevices.join(", ")}] are not found in the organization UID list.`;
+        this.logger.error(errorMsg);
+        throw new AppError(ErrorCode.GROUP_NOT_ALLOWED_TO_ADD, errorMsg);
+      }
 
       await this.orgUid.save(uids);
     }

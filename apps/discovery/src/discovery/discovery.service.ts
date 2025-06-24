@@ -51,7 +51,7 @@ export class DiscoveryService {
     // it means a newer message has already been processed for this device.
 
     // Wrap dto.snapshotDate in Date, as microservice data loses type.
-    if (parent && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
+    if (parent && device.lastConnectionDate && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
 
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.formations = dto?.softwareData?.formations;
@@ -132,7 +132,7 @@ export class DiscoveryService {
 
   }
 
-  private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]) {    
+  private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]) {
     const compsCatalogId = Array.from(new Set(compsState.map(comp => comp.catalogId)));
 
     let deviceComps: DeviceComponentStateDto[] = []

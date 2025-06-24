@@ -34,7 +34,14 @@ export class DeviceRepoService {
     this.logger.log(`Get organization id for the given devices`);
 
     const devices = Array.isArray(device) ? device : [device]
-    const dvcOrgIds = await this.orgIdEntity.find({ where: { device: In(devices) } })
+    const dvcOrgIds = await this.orgIdEntity.find({
+      where: { device: { ID: In(devices) } },
+      relations: { device: true },
+      select: {
+        UID: true,
+        device: { ID: true, name: true }
+      }
+    })
     return dvcOrgIds
   }
 
@@ -50,10 +57,10 @@ export class DeviceRepoService {
     if (p.name !== undefined) {
       device.name = p.name
     }
-    const savedDevice = await this.deviceRepo.save(device)
+    let savedDevice = await this.deviceRepo.save(device)
 
-    let orgId: OrgUIDEntity | null;
     if (p.orgUID) {
+      let orgId: OrgUIDEntity | null;
       if (p.orgUID != null) {
         // TODO handle duplicate case
         orgId = this.orgIdEntity.create()
