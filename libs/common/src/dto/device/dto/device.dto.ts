@@ -11,36 +11,36 @@ export class DeviceDto {
 
   @ApiProperty({ required: false })
   @IsDate()
-  lastUpdatedDate: Date
+  lastUpdatedDate?: Date
  
   @ApiProperty({ required: false })
   @IsDate()
-  lastConnectionDate: Date
+  lastConnectionDate?: Date
  
   @ApiProperty({ required: false })
   @IsString()
-  name: string
+  name?: string
 
   @ApiProperty({ required: false })
   @IsString()
-  OS: string
+  OS?: string
 
   @ApiProperty({ required: false })
   @IsString()
-  availableStorage: string
+  availableStorage?: string
 
   @ApiProperty({ required: false })
   @Min(0)
   @Max(100)
-  power: number;
+  power?: number;
 
   @ApiProperty({ required: false })
   @IsNumber()
-  bandwidth: number;
+  bandwidth?: number;
 
   @ApiProperty({ required: false })
   @IsBoolean()
-  operativeState: true
+  operativeState?: true
 
 
   @ApiProperty({required: false})
@@ -61,7 +61,7 @@ export class DeviceDto {
   uid?: number
 
   @ApiProperty({required: false, type: 'string', isArray: true})
-  formations: string[]
+  formations?: string[]
 
 
   static fromDeviceEntity(deviceE: DeviceEntity, discoveryE?: DiscoveryMessageEntity): DeviceDto {
