@@ -35,6 +35,11 @@ export class DeviceController {
     return this.deviceService.getRegisteredDevices(groups)
   }
 
+  @MessagePattern(DeviceTopics.GET_DEVICE)
+  getDeviceDetails(@RpcPayload() deviceId: string): Promise<DeviceDto | DeviceDto[]> {
+    return this.deviceService.getDeviceDetails(deviceId)
+  }
+
   @MessagePattern(DeviceTopics.DEVICES_SOFTWARE_STATISTIC_INFO)
   getDevicesSoftwareStatisticInfo(@RpcPayload('params') params: { [key: string]: string[] | undefined }): Promise<DevicesStatisticInfo> {
     return this.deviceService.getDevicesSoftwareStatisticInfo(params)

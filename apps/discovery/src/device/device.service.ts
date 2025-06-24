@@ -1,5 +1,5 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
-import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
 import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity, OrgGroupEntity, OrgUIDEntity, ReleaseEntity, ReleaseStatusEnum, UploadVersionEntity } from '@app/common/database/entities';
@@ -15,6 +15,7 @@ import { ReleaseChangedEventDto } from '@app/common/dto/upload';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { OfferingTopicsEmit } from '@app/common/microservice-client/topics';
 import { Deprecated } from '@app/common/decorators';
+import { AppError, ErrorCode } from '@app/common/dto/error';
 
 @Injectable()
 export class DeviceService {
@@ -46,6 +47,22 @@ export class DeviceService {
       take: 100
     })
     return this.deviceToDevicesDto(devices)
+  }
+
+  async getDeviceDetails(deviceId: string): Promise<DeviceDto> {
+
+    const devices = await this.deviceRepo.findOne({
+      relations: { orgUID: { group: true } },
+      where: { ID: deviceId },
+      order: { createdDate: "DESC" }
+    })
+
+    if (devices) {
+      return (await this.deviceToDevicesDto([devices]))[0];
+    } else {
+      this.logger.error(`Device with ID ${deviceId} not found`);
+      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${deviceId} not found`, HttpStatus.BAD_REQUEST);
+    }
   }
 
   async getGroupsChildren(gid: number[]) {
@@ -346,7 +363,6 @@ export class DeviceService {
     return devices.map(device => {
       const dis = discoveries.find(dis => (dis?.device.ID || "") == device.ID)
       return DeviceDto.fromDeviceEntity(device, dis);
-
     })
   }
 
