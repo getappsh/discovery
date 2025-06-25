@@ -81,12 +81,19 @@ export class DiscoveryService {
 
     const dm = new DiscoveryMessageEntity()
     dm.snapshotDate = parent ? dto.snapshotDate : new Date()
+    dm.reportingDevice = parent
     dm.discoveryType = dto.discoveryType
     dm.personalDevice = dto.general?.personalDevice;
     dm.situationalDevice = dto.general?.situationalDevice;
     dm.discoveryData = dto.softwareData;
     dm.device = device
 
+    // Convert undefined properties to null before saving
+    Object.keys(device).forEach(key => {
+      if (device[key] === undefined) {
+        device[key] = null;
+      }
+    });
 
     this.logger.verbose(`discovery message ${dm}`);
     this.discoveryMessageRepo.save(dm);
