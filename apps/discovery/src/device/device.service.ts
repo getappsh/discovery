@@ -134,7 +134,7 @@ export class DeviceService {
       .filter(d => d.isUpdate).map(d => d.id)
 
     const onUpdate = devices.map(dvc => {
-      const compOnUpdates = dvc?.components?.filter(comp => comp.state == DeviceComponentStateEnum.PUSH || comp.state == DeviceComponentStateEnum.DELIVERY || comp.state == DeviceComponentStateEnum.DEPLOY)
+      const compOnUpdates = dvc?.components?.filter(comp => comp.state == DeviceComponentStateEnum.PUSH || comp.state == DeviceComponentStateEnum.DELIVERY || comp.state == DeviceComponentStateEnum.DOWNLOADED || comp.state == DeviceComponentStateEnum.DEPLOY)
       if (compOnUpdates?.length)
         return { onUpdateProc: true, id: dvc.ID, isError: compOnUpdates.some(comp => comp.error !== null) }
       else return { onUpdateProc: false, id: dvc.ID }
