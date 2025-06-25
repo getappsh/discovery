@@ -58,7 +58,16 @@ export class DiscoveryService {
 
     if (dto.platform) device.platform = await this.platformRepo.findOne({ where: { name: dto.platform.name } }) ?? undefined
     if (dto.deviceType) device.deviceType = await this.deviceTypeRepo.findOne({ where: { name: dto.deviceType } }) ?? undefined
-    if (parent) device.parent = parent
+
+    // Only device there is no of type platform, can be a device children
+    if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
+
+    // Convert undefined properties to null before saving
+    Object.keys(device).forEach(key => {
+      if (device[key] === undefined) {
+        device[key] = null;
+      }
+    });
 
     this.logger.debug("save device")
     return await this.deviceRepo.save(device)
@@ -72,12 +81,19 @@ export class DiscoveryService {
 
     const dm = new DiscoveryMessageEntity()
     dm.snapshotDate = parent ? dto.snapshotDate : new Date()
+    dm.reportingDevice = parent
     dm.discoveryType = dto.discoveryType
     dm.personalDevice = dto.general?.personalDevice;
     dm.situationalDevice = dto.general?.situationalDevice;
     dm.discoveryData = dto.softwareData;
     dm.device = device
 
+    // Convert undefined properties to null before saving
+    Object.keys(device).forEach(key => {
+      if (device[key] === undefined) {
+        device[key] = null;
+      }
+    });
 
     this.logger.verbose(`discovery message ${dm}`);
     this.discoveryMessageRepo.save(dm);
