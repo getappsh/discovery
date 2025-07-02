@@ -80,7 +80,7 @@ export class GroupService {
 
     let groupsObj: GroupResponseDto = { roots: [], groups: {} }
     groupsObj.groups = groupsDto.reduce((acc, obj) => {
-      if (obj.parent === null) {
+      if (!obj.parent) {
         groupsObj.roots.push(obj.id.toString())
       }
       acc[obj.id] = obj;
