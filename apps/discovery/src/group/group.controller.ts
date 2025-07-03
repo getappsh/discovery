@@ -34,4 +34,9 @@ export class GroupController {
     return this.groupService.setDevicesInGroup(devices);
   }
 
+  @MessagePattern(DevicesGroupTopics.DELETE_GROUP)
+  deleteGroup(@RpcPayload() groupId: string) {
+    return this.groupService.deleteGroup(groupId);
+  }
+
 }

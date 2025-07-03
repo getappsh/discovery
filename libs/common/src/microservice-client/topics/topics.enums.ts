@@ -190,6 +190,7 @@ export const DevicesGroupTopics = {
     GET_GROUPS: `getapp-device.group.get-all${region}`,
     GET_GROUP_DEVICES: `getapp-device.group.get-devices${region}`,
     SET_GROUP_DEVICES: `getapp-device.group.set-devices${region}`,
+    DELETE_GROUP: `getapp-device.group.delete${region}`,
 } as const
 
 export const DevicesHierarchyTopics = {

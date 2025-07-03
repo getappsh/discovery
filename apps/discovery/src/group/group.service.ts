@@ -157,4 +157,14 @@ export class GroupService {
     return groupEntities
   }
 
+  async deleteGroup(groupId: string) {
+    this.logger.log(`Delete group with id: ${groupId}`);
+    const group = await this.groupRepo.findOneBy({ id: parseInt(groupId) });
+    if (!group) {
+      throw new AppError(ErrorCode.GROUP_NOT_FOUND, `Group with id ${groupId} not found`);
+    }
+    const removedGroup = await this.groupRepo.remove(group);
+    return ChildGroupDto.fromDevicesGroupEntity(removedGroup);
+  }
+
 }
