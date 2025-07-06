@@ -107,6 +107,16 @@ export class GroupService {
 
     if (!groupEntity) throw new AppError(ErrorCode.GROUP_NOT_FOUND);
 
+    if ('parent' in group) {
+      if (group.parent === null) {
+        (groupEntity.parent as any) = null;
+      } else {
+        const parentGroup = await this.groupRepo.findOneBy({ id: group.parent });
+        (groupEntity.parent as any) = parentGroup;
+      }
+      await this.groupRepo.save(groupEntity);
+    }
+
     if (group.devices) {
       const dvcWithDvcParent = await this.deviceRepo.find({ where: { ID: In(group.devices), parent: Not(IsNull()) } })
       if (dvcWithDvcParent.length > 0) {
