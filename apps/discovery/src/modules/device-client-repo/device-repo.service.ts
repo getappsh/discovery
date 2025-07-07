@@ -45,26 +45,26 @@ export class DeviceRepoService {
     return dvcOrgIds
   }
 
-  async setDevice(p: DevicePutDto) {
-    const device = await this.deviceRepo.findOne({ where: { ID: p.deviceId } })
+  async setDevice(dto: DevicePutDto) {
+    const device = await this.deviceRepo.findOne({ where: { ID: dto.deviceId } })
 
     if (!device) {
-      const mes = `Device ${p.deviceId} not exist`
+      const mes = `Device ${dto.deviceId} not exist`
       this.logger.error(mes)
       throw new BadRequestException(mes)
     }
     this.logger.log(`Save props for device ${device.ID}`)
-    if (p.name !== undefined) {
-      device.name = p.name
+    if (dto.name !== undefined) {
+      device.name = dto.name
     }
     let savedDevice = await this.deviceRepo.save(device)
 
-    if (p.orgUID) {
+    if ("orgUID" in dto) {
       let orgId: OrgUIDEntity | null;
-      if (p.orgUID != null) {
+      if (dto.orgUID != null) {
         // TODO handle duplicate case
         orgId = this.orgIdEntity.create()
-        orgId.UID = p.orgUID
+        orgId.UID = dto.orgUID
         orgId.device = device
 
       } else {
