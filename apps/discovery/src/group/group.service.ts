@@ -1,10 +1,12 @@
 import { DeviceEntity, OrgGroupEntity, OrgUIDEntity } from "@app/common/database/entities";
 import { CreateDevicesGroupDto, ChildGroupDto, EditDevicesGroupDto, SetChildInGroupDto, ChildGroupRawDto, GroupResponseDto } from "@app/common/dto/devices-group";
-import { Injectable, Logger, InternalServerErrorException } from "@nestjs/common";
+import { Injectable, Logger, InternalServerErrorException, ConflictException, HttpStatus } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, IsNull, Not, Repository } from "typeorm";
+import { In, IsNull, Not, QueryFailedError, Repository } from "typeorm";
 import { DeviceRepoService } from "../modules/device-client-repo/device-repo.service";
 import { AppError, ErrorCode } from "@app/common/dto/error";
+import { OrgIdDto, OrgIdPutDto, OrgIdRefDto } from "@app/common/dto/devices-group/dto/org-id.dto";
+import e from "express";
 
 @Injectable()
 export class GroupService {
@@ -12,7 +14,7 @@ export class GroupService {
 
   constructor(
     @InjectRepository(OrgGroupEntity) private readonly groupRepo: Repository<OrgGroupEntity>,
-    @InjectRepository(OrgUIDEntity) private readonly orgUid: Repository<OrgUIDEntity>,
+    @InjectRepository(OrgUIDEntity) private readonly orgUidRepo: Repository<OrgUIDEntity>,
     @InjectRepository(DeviceEntity) private readonly deviceRepo: Repository<DeviceEntity>,
     private deviceRepoS: DeviceRepoService
   ) { }
@@ -139,7 +141,7 @@ export class GroupService {
         throw new AppError(ErrorCode.GROUP_NOT_ALLOWED_TO_ADD, errorMsg);
       }
 
-      await this.orgUid.save(uids);
+      await this.orgUidRepo.save(uids);
     }
 
     if (group.groups) {
@@ -175,6 +177,208 @@ export class GroupService {
     }
     const removedGroup = await this.groupRepo.remove(group);
     return ChildGroupDto.fromDevicesGroupEntity(removedGroup);
+  }
+
+  async createOrgIds(orgIds: OrgIdDto) {
+    this.logger.log(`Create orgIds: ${JSON.stringify(orgIds)}`);
+    let orgIdsEntity = this.orgUidRepo.create({ UID: orgIds.orgId });
+    try {
+      orgIdsEntity = await this.orgUidRepo.save(orgIdsEntity);
+      return OrgIdRefDto.fromOrgIdEntity(orgIdsEntity);
+    } catch (error: any) {
+      this.logger.error(`Failed to save organization IDs: ${error}`);
+
+      // Handle known DB error codes (e.g., PostgreSQL unique violation: 23505)
+      if (error instanceof QueryFailedError) {
+        const err = error as any;
+
+        if (err.code === '23505') {
+          // Unique constraint violation
+          throw new AppError(ErrorCode.GROUP_ORG_ID_CONFLICT, `Organization ID ${orgIds.orgId} already exists.`, HttpStatus.CONFLICT);
+        }
+      }
+      throw new AppError(ErrorCode.GROUP_ORG_ID_UNKNOWN, `Failed to save organization IDs.`);
+    }
+  }
+
+  private buildBaseOrgIdQuery() {
+    return this.orgUidRepo.createQueryBuilder("org")
+      .leftJoin("org.device", "device")
+      .leftJoin("org.group", "group")
+      .select([
+        "org.UID as orgId",
+        "device.ID as deviceId",
+        "group.id as groupId"
+      ]);
+  }
+
+  async getOrgIds(group?: number, emptyGroup?: boolean, emptyDevice?: boolean): Promise<OrgIdRefDto[]> {
+    this.logger.log(`Get orgIds for group: ${group}, emptyGroup: ${emptyGroup}, emptyDevice: ${emptyDevice}`);
+
+    const query = this.buildBaseOrgIdQuery();
+
+    if (group !== null && group !== undefined && emptyGroup) {
+      query.where("(group.id = :group OR group.id IS NULL)", { group });
+    } else if (group !== null && group !== undefined) {
+      query.where("group.id = :group", { group });
+    } else if (emptyGroup) {
+      query.where("group.id IS NULL");
+    }
+
+    if (emptyDevice) {
+      query.andWhere("device.ID IS NULL");
+    }
+
+    try {
+      const result = await query.getRawMany();
+      return result.map(row => OrgIdRefDto.fromRaw(row));
+
+    } catch (error) {
+      this.logger.error(`Failed to get orgIds: ${error}`);
+      throw new AppError(ErrorCode.GROUP_ORG_ID_UNKNOWN, error.message);
+    }
+
+  }
+
+
+  async getOrgId(orgId: number) {
+    this.logger.log(`Get orgId: ${orgId}`);
+    try {
+
+      const raw = await this.buildBaseOrgIdQuery()
+        .where("org.UID = :orgId", { orgId })
+        .getRawOne();
+
+      if (!raw) {
+        throw new AppError(
+          ErrorCode.GROUP_ORG_ID_NOT_FOUND,
+          `Organization ID ${orgId} not found.`,
+          HttpStatus.NOT_FOUND
+        );
+      }
+
+      return OrgIdRefDto.fromRaw(raw);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      this.logger.error(`Failed to get organization ID ${orgId}: ${error}`);
+      throw new AppError(ErrorCode.GROUP_ORG_ID_UNKNOWN, error.message);
+    }
+  }
+
+  async editOrgIds(payload: OrgIdPutDto) {
+    // Basic implementation: edit orgId
+    this.logger.log(`Edit orgId: ${payload.orgId}, data: ${JSON.stringify(payload)}`);
+
+
+    try {
+      const orgEntity = await this.orgUidRepo.findOne({ where: { UID: payload.orgId }, relations: ["device", "group"] });
+
+      if (!orgEntity) {
+        throw new AppError(
+          ErrorCode.GROUP_ORG_ID_NOT_FOUND,
+          `Organization ID ${payload.orgId} not found.`,
+          HttpStatus.NOT_FOUND
+        );
+      }
+
+      // Update device relation
+      if ("device" in payload) {
+        if (payload.device === null) {
+          orgEntity.device = null;
+        } else if (payload.device) {
+          const deviceEntity = await this.deviceRepo.findOne({ where: { ID: payload.device } });
+          if (!deviceEntity) {
+            throw new AppError(
+              ErrorCode.DEVICE_NOT_FOUND,
+              `Device ID ${payload.device} not found.`,
+              HttpStatus.BAD_REQUEST
+            );
+          }
+
+          if (orgEntity.device && orgEntity.device.ID !== payload.device) {
+            const msg = `Org Id Device is already associated to another device. Reassigning to a new device (ID ${payload.device}) is not allowed.`;
+            this.logger.error(msg);
+            throw new AppError(
+              ErrorCode.GROUP_ORG_ID_CONFLICT,
+              msg,
+              HttpStatus.CONFLICT
+            );
+          }
+          orgEntity.device = deviceEntity;
+        }
+      }
+
+      // Update group relation
+      if ("group" in payload) {
+        if (payload.group === null) {
+          orgEntity.group = null;
+        } else {
+          const groupEntity = await this.groupRepo.findOne({ where: { id: payload.group } });
+          if (!groupEntity) {
+            throw new AppError(
+              ErrorCode.GROUP_NOT_FOUND,
+              `Group ID ${payload.group} not found.`,
+              HttpStatus.BAD_REQUEST
+            );
+          }
+
+          // Optional strict rule: disallow changing group if already set to another one
+          if (orgEntity.group && orgEntity.group.id !== payload.group) {
+            const msg = `OrgId is already linked to group ${orgEntity.group.id}. Reassigning to group ${payload.group} is not allowed.`;
+            this.logger.error(msg);
+            throw new AppError(
+              ErrorCode.GROUP_ORG_ID_CONFLICT,
+              msg,
+              HttpStatus.CONFLICT
+            );
+          }
+
+          orgEntity.group = groupEntity;
+        }
+      }
+
+      const savedEntity = await this.orgUidRepo.save(orgEntity);
+
+      return OrgIdRefDto.fromOrgIdEntity(savedEntity);
+    } catch (error) {
+      this.logger.error(`Failed to edit orgId ${payload.orgId}: ${error}`);
+
+      if (error instanceof AppError) throw error;
+
+      throw new AppError(
+        ErrorCode.GROUP_ORG_ID_UNKNOWN,
+        `Failed to edit organization ID.`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  async deleteOrgIds(orgId: number) {
+    this.logger.log(`Delete orgId: ${orgId}`);
+
+    try {
+      const deleteE = await this.orgUidRepo.findOne({ where: { UID: orgId } });
+      const deleteResult = await this.orgUidRepo.delete({ UID: orgId });
+
+      if (deleteResult.affected === 0) {
+        throw new AppError(
+          ErrorCode.GROUP_ORG_ID_NOT_FOUND,
+          `Organization ID ${orgId} not found.`,
+          HttpStatus.NOT_FOUND
+        );
+      }
+
+      return deleteE && OrgIdRefDto.fromOrgIdEntity(deleteE);
+    } catch (error: any) {
+      this.logger.error(`Failed to delete orgId ${orgId}: ${error}`);
+
+      if (error instanceof AppError) throw error;
+
+      throw new AppError(
+        ErrorCode.GROUP_ORG_ID_UNKNOWN,
+        `Failed to delete organization ID.`
+      );
+    }
   }
 
 }
