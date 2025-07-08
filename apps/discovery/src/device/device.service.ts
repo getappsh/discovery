@@ -43,7 +43,7 @@ export class DeviceService {
     const devices = await this.deviceRepo.find({
       relations: { orgUID: { group: true } },
       where: groupsIntArray ? { orgUID: { group: { id: In(groupsIntArray) } } } : {},
-      order: { createdDate: "DESC" },
+      order: { lastConnectionDate: "DESC" },
       take: 100
     })
     return this.deviceToDevicesDto(devices)
