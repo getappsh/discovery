@@ -118,6 +118,35 @@ export class DeviceRepoService {
         }
       }
 
+      if ("groupId" in dto) {
+        const existingOrgId = await queryRunner.manager.findOne(OrgUIDEntity, {
+          where: { device: { ID: device.ID } }
+        });
+
+        if (!existingOrgId) {
+          const msg = `Device ${device.ID} does not have an orgUID assigned. Please assign an orgUID before setting a group.`;
+          this.logger.error(msg);
+          throw new AppError(ErrorCode.GROUP_ORG_ID_NOT_FOUND, msg, HttpStatus.BAD_REQUEST);
+        }
+
+        if (dto.groupId != null) {
+          const group = await queryRunner.manager.findOne(OrgGroupEntity, { where: { id: dto.groupId } });
+
+          if (!group) {
+            throw new AppError(
+              ErrorCode.GROUP_NOT_FOUND,
+              `Group with ID ${dto.groupId} does not exist`,
+              HttpStatus.NOT_FOUND
+            );
+          }
+
+          existingOrgId.group = group;
+        } else {
+          existingOrgId.group = null;
+        }
+        await queryRunner.manager.save(existingOrgId);
+      }
+
       await queryRunner.commitTransaction();
       return DevicePutDto.fromDeviceEntity(savedDevice);
 
