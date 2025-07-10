@@ -16,6 +16,7 @@ import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-c
 import { OfferingTopicsEmit } from '@app/common/microservice-client/topics';
 import { Deprecated } from '@app/common/decorators';
 import { AppError, ErrorCode } from '@app/common/dto/error';
+import { GroupService } from '../group/group.service';
 
 @Injectable()
 export class DeviceService {
@@ -31,7 +32,8 @@ export class DeviceService {
     @InjectRepository(DeviceMapStateEntity) private readonly deviceMapRepo: Repository<DeviceMapStateEntity>,
     @InjectRepository(DeviceComponentEntity) private readonly deviceCompRepo: Repository<DeviceComponentEntity>,
     @Inject(MicroserviceName.OFFERING_SERVICE) private readonly offeringClient: MicroserviceClient,
-    private deviceRepoS: DeviceRepoService
+    private deviceRepoS: DeviceRepoService,
+    private groupService: GroupService
   ) { }
 
   async getRegisteredDevices(groups?: string[]): Promise<DeviceDto[]> {
@@ -53,28 +55,7 @@ export class DeviceService {
 
     this.logger.log(`Get device details for device ID: '${deviceId}'`);
 
-    const devices = await this.deviceRepo.createQueryBuilder('device')
-      .leftJoinAndSelect('device.parent', 'parent')
-      .leftJoinAndSelect('device.orgUID', 'org')
-      .leftJoinAndSelect('org.group', 'group')
-      .leftJoinAndSelect('device.platform', 'platform')
-      .leftJoinAndSelect('device.deviceType', 'deviceType')
-      .leftJoinAndSelect('device.children', 'children')
-      .select([
-        'device',
-        'parent.ID',
-        'children.ID',
-        'org.UID',
-        'group.id',
-        'group.name',
-        'platform.name',
-        'platform.id',
-        'deviceType.name',
-        'deviceType.id'
-      ])
-      .where('device.ID = :deviceId', { deviceId })
-      .getOne();
-
+    const devices = await this.groupService.getOrgDeviceData(deviceId);
 
     if (devices) {
       return (await this.deviceToDevicesDto([devices]))[0];
