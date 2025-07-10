@@ -6,10 +6,11 @@ import { In, IsNull, Not, QueryFailedError, Repository } from "typeorm";
 import { DeviceRepoService } from "../modules/device-client-repo/device-repo.service";
 import { AppError, ErrorCode } from "@app/common/dto/error";
 import { OrgIdDto, OrgIdPutDto, OrgIdRefDto } from "@app/common/dto/devices-group/dto/org-id.dto";
-import e from "express";
+import { DeviceOrgDto } from "@app/common/dto/device/dto/device-org.dto";
 
 @Injectable()
 export class GroupService {
+
   private readonly logger = new Logger(GroupService.name);
 
   constructor(
@@ -177,6 +178,28 @@ export class GroupService {
     }
     const removedGroup = await this.groupRepo.remove(group);
     return ChildGroupDto.fromDevicesGroupEntity(removedGroup);
+  }
+
+  async getOrgDeviceData(deviceId: string) {
+    this.logger.log(`Get device details for device ID: '${deviceId}'`);
+
+    const device = await this.buildDeviceOrgQuery(deviceId).getOne();
+
+
+    if (device) {
+      return device;
+    } else {
+      this.logger.error(`Device with ID ${deviceId} not found`);
+      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${deviceId} not found`, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  async getOrgDevicesData() {
+    this.logger.log(`Get all devices with org data`);
+
+    const devices = await this.buildDeviceOrgQuery().getMany();
+
+    return devices.map(device => DeviceOrgDto.fromDeviceEntity(device));
   }
 
   async createOrgIds(orgIds: OrgIdDto) {
@@ -381,4 +404,29 @@ export class GroupService {
     }
   }
 
+  private buildDeviceOrgQuery(deviceId?: string) {
+    const query = this.deviceRepo.createQueryBuilder('device')
+      .leftJoinAndSelect('device.parent', 'parent')
+      .leftJoinAndSelect('device.orgUID', 'org')
+      .leftJoinAndSelect('org.group', 'group')
+      .leftJoinAndSelect('device.platform', 'platform')
+      .leftJoinAndSelect('device.deviceType', 'deviceType')
+      .leftJoinAndSelect('device.children', 'children')
+      .select([
+        'device',
+        'parent.ID',
+        'children.ID',
+        'org.UID',
+        'group.id',
+        'group.name',
+        'platform.name',
+        'platform.id',
+        'deviceType.name',
+        'deviceType.id'
+      ]);
+    if (deviceId) {
+      query.where('device.ID = :deviceId', { deviceId });
+    }
+    return query;
+  }
 }

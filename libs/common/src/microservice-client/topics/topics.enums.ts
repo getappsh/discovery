@@ -197,6 +197,7 @@ export const DevicesGroupTopics = {
     GET_ORG_ID: `getapp-device.group.org-ids.get${region}`,
     EDIT_ORG_IDS: `getapp-device.group.org-ids.edit${region}`,
     DELETE_ORG_IDS: `getapp-device.group.org-ids.delete${region}`,
+    GET_ORG_DEVICES: `getapp-device.group.org-devices.get-all${region}`
 } as const
 
 export const DevicesHierarchyTopics = {

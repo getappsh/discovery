@@ -40,6 +40,11 @@ export class GroupController {
     return this.groupService.deleteGroup(groupId);
   }
 
+  @MessagePattern(DevicesGroupTopics.GET_ORG_DEVICES)
+  getOrgDevicesData() {
+    return this.groupService.getOrgDevicesData();
+  }
+
   @MessagePattern(DevicesGroupTopics.CREATE_ORG_IDS)
   createOrgIds(@RpcPayload() orgIds: any) {
     return this.groupService.createOrgIds(orgIds);
