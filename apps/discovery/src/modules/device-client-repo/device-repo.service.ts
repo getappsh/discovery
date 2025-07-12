@@ -41,6 +41,7 @@ export class DeviceRepoService {
       where: { device: { ID: In(devices) } },
       relations: { device: true },
       select: {
+        id: true,
         UID: true,
         device: { ID: true, name: true }
       }

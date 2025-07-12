@@ -197,7 +197,9 @@ export class GroupService {
   async getOrgDevicesData() {
     this.logger.log(`Get all devices with org data`);
 
-    const devices = await this.buildDeviceOrgQuery().getMany();
+    const devices = await this.buildDeviceOrgQuery()
+    .orderBy("device.createdDate", "DESC")
+    .getMany();
 
     return devices.map(device => DeviceOrgDto.fromDeviceEntity(device));
   }
