@@ -31,7 +31,7 @@ export class OrgIdRefDto extends OrgIdDto {
     return JSON.stringify(this);
   }
 
-  static fromOrgIdEntity(orgIdEntity: OrgUIDEntity): OrgIdRefDto {    
+  static fromOrgIdEntity(orgIdEntity: OrgUIDEntity): OrgIdRefDto {
     const dto = new OrgIdRefDto();
     dto.orgId = orgIdEntity.UID;
     dto.device = orgIdEntity.device?.ID;
