@@ -43,6 +43,27 @@ export class DiscoveryService {
 
   }
 
+  private isNum = (num) => Number.isFinite ? Number.isFinite(+num) : isFinite(+num)
+
+  private getPlatformByToken(token: string): Promise<PlatformEntity | null> {
+    
+    if (this.isNum(token)) {
+      const id = parseInt(token, 10);
+      return this.platformRepo.findOne({ where: { id } });
+    } else {
+      return this.platformRepo.findOne({ where: { name: token } });
+    }
+  }
+
+  private getDeviceTypeByToken(token: string): Promise<DeviceTypeEntity | null> {
+    if (this.isNum(token)) {
+      const id = parseInt(token, 10);
+      return this.deviceTypeRepo.findOne({ where: { id } });
+    } else {
+      return this.deviceTypeRepo.findOne({ where: { name: token } });
+    }
+  }
+
   async setDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
     let device = await this.deviceRepo.findOne({ where: { ID: dto.id } })
       ?? this.deviceRepo.create({ ...dto.general?.physicalDevice, ID: dto.id });
@@ -56,8 +77,8 @@ export class DiscoveryService {
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.formations = dto?.softwareData?.formations;
 
-    if (dto.platform) device.platform = await this.platformRepo.findOne({ where: { name: dto.platform.name } }) ?? undefined
-    if (dto.deviceType) device.deviceType = await this.deviceTypeRepo.findOne({ where: { name: dto.deviceType } }) ?? undefined
+    if (dto.platform) device.platform = await this.getPlatformByToken(dto.platform.token) ?? undefined
+    if (dto.deviceTypeToken) device.deviceType = await this.getDeviceTypeByToken(dto.deviceTypeToken) ?? undefined
 
     // Only device there is no of type platform, can be a device children
     if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
