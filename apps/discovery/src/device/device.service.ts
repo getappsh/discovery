@@ -42,12 +42,11 @@ export class DeviceService {
     if (groupsIntArray) {
       groupsIntArray = await this.getGroupsChildren(groupsIntArray);
     }
-    const devices = await this.deviceRepo.find({
-      relations: { orgUID: { group: true } },
-      where: groupsIntArray ? { orgUID: { group: { id: In(groupsIntArray) } } } : {},
-      order: { lastConnectionDate: "DESC" },
-      take: 100
-    })
+    const qBuilder = this.groupService.buildDeviceOrgQuery();
+    qBuilder.andWhere(groupsIntArray ? 'group.id IN (:...groupsIntArray)' : '1=1', { groupsIntArray })
+    qBuilder.take(100)
+    const devices = await qBuilder.getMany();
+
     return this.deviceToDevicesDto(devices)
   }
 

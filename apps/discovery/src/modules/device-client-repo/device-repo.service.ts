@@ -63,6 +63,8 @@ export class DeviceRepoService {
         throw new BadRequestException(`Device ${dto.deviceId} does not exist`);
       }
 
+      device.lastConnectionDate = new Date();
+
       if (dto.name !== undefined) {
         device.name = dto.name;
       }

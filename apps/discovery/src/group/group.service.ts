@@ -197,9 +197,7 @@ export class GroupService {
   async getOrgDevicesData() {
     this.logger.log(`Get all devices with org data`);
 
-    const devices = await this.buildDeviceOrgQuery()
-    .orderBy("device.createdDate", "DESC")
-    .getMany();
+    const devices = await this.buildDeviceOrgQuery().getMany();
 
     return devices.map(device => DeviceOrgDto.fromDeviceEntity(device));
   }
@@ -406,9 +404,10 @@ export class GroupService {
     }
   }
 
-  private buildDeviceOrgQuery(deviceId?: string) {
+  buildDeviceOrgQuery(deviceId?: string | string[]) {
     const query = this.deviceRepo.createQueryBuilder('device')
       .leftJoinAndSelect('device.parent', 'parent')
+      .leftJoinAndSelect('parent.orgUID', 'parentOrg')
       .leftJoinAndSelect('device.orgUID', 'org')
       .leftJoinAndSelect('org.group', 'group')
       .leftJoinAndSelect('device.platform', 'platform')
@@ -417,6 +416,8 @@ export class GroupService {
       .select([
         'device',
         'parent.ID',
+        'parent.name',
+        'parentOrg.UID',
         'children.ID',
         'org.UID',
         'group.id',
@@ -426,9 +427,15 @@ export class GroupService {
         'deviceType.name',
         'deviceType.id'
       ]);
+
     if (deviceId) {
+      if (Array.isArray(deviceId)) {
+      query.where('device.ID IN (:...deviceId)', { deviceId });
+      } else {
       query.where('device.ID = :deviceId', { deviceId });
+      }
     }
+    query.orderBy("device.lastConnectionDate", "DESC", "NULLS LAST");
     return query;
   }
 }
