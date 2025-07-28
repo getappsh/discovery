@@ -408,6 +408,7 @@ export class GroupService {
     const query = this.deviceRepo.createQueryBuilder('device')
       .leftJoinAndSelect('device.parent', 'parent')
       .leftJoinAndSelect('parent.orgUID', 'parentOrg')
+      .leftJoinAndSelect('parentOrg.group', 'parentOrgGroup')
       .leftJoinAndSelect('device.orgUID', 'org')
       .leftJoinAndSelect('org.group', 'group')
       .leftJoinAndSelect('device.platform', 'platform')
@@ -418,6 +419,7 @@ export class GroupService {
         'parent.ID',
         'parent.name',
         'parentOrg.UID',
+        'parentOrgGroup.id',
         'children.ID',
         'org.UID',
         'group.id',

@@ -43,7 +43,9 @@ export class DeviceService {
       groupsIntArray = await this.getGroupsChildren(groupsIntArray);
     }
     const qBuilder = this.groupService.buildDeviceOrgQuery();
-    qBuilder.andWhere(groupsIntArray ? 'group.id IN (:...groupsIntArray)' : '1=1', { groupsIntArray })
+    if (groupsIntArray && groupsIntArray.length > 0) {
+      qBuilder.andWhere('group.id IN (:...groupsIntArray) OR parentOrgGroup.id IN (:...groupsIntArray)', { groupsIntArray });
+    }
     qBuilder.take(100)
     const devices = await qBuilder.getMany();
 
