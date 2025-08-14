@@ -7,6 +7,7 @@ export const UploadTopics = {
     UPDATE_UPLOAD_STATUS: `getapp-upload.update-upload-status${region}`,
     LAST_VERSION: `getapp-upload.last-version${region}`,
     CHECK_HEALTH: `getapp-upload.check-health${region}`,
+
     CREATE_FILE_UPLOAD_URL: `getapp-upload.create-file-upload-url${region}`,
 
     // Releases
@@ -30,6 +31,7 @@ export const UploadTopics = {
 
 export const UploadTopicsEmit = {
     PROJECT_REGULATION_CHANGED: `getapp-upload.project-regulation-changed${region}`,
+    UPDATE_FILE_UPLOAD: `getapp-upload.update-file-upload${region}`,
 }
 
 export const DeliveryTopics = {
