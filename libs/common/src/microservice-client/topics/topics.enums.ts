@@ -9,6 +9,7 @@ export const UploadTopics = {
     CHECK_HEALTH: `getapp-upload.check-health${region}`,
 
     CREATE_FILE_UPLOAD_URL: `getapp-upload.create-file-upload-url${region}`,
+    GET_FILE_UPLOAD_URL: `getapp-upload.get-file-upload-url${region}`,
 
     // Releases
     GET_RELEASES: `getapp-upload.get-releases${region}`,
