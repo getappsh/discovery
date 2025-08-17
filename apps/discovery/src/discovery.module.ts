@@ -36,6 +36,11 @@ import { JwtModule } from '@nestjs/jwt';
       type: MicroserviceType.OFFERING,
       id: "discovery"
     }),
+    MicroserviceModule.register({
+      name: MicroserviceName.UPLOAD_SERVICE,
+      type: MicroserviceType.UPLOAD,
+      id: "discovery"
+    }),
     DatabaseModule,
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
