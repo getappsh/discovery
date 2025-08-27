@@ -17,13 +17,13 @@ export class HierarchyService implements ProjectAccessService {
     @InjectRepository(ProjectEntity) private readonly projectRepo: Repository<ProjectEntity>,
     @InjectRepository(MemberProjectEntity) private readonly memberProjectRepo: Repository<MemberProjectEntity>,
     private readonly jwtService: JwtService,
-  ) {}
- 
+  ) { }
+
   // Create Platform
   async createPlatform(dto: CreatePlatformDto): Promise<PlatformDto> {
     this.logger.debug(`Create platform: ${dto.name}`);
 
-     const exists = await this.platformRepo.findOneBy({ name: dto.name });
+    const exists = await this.platformRepo.findOneBy({ name: dto.name });
     if (exists) {
       throw new ConflictException(`Platform name: "${dto.name}" already exists`);
     }
@@ -41,10 +41,10 @@ export class HierarchyService implements ProjectAccessService {
     platform.imageId = dto.imageId;
     platform.metadata = dto.metadata;
 
-    try{
+    try {
       const savedPlatform = await this.platformRepo.save(platform);
       return PlatformDto.fromEntity(savedPlatform);
-    }catch (error) {
+    } catch (error) {
       this.logger.error(`Error while saving platform: ${error}`);
       if (error.code === '23505') { // Unique constraint violation error code for PostgreSQL
         throw new ConflictException('Platform name already exists');
@@ -77,10 +77,10 @@ export class HierarchyService implements ProjectAccessService {
       throw new NotFoundException('Platform not found');
     }
     Object.assign(platform, dto);
-    try{
+    try {
       const savedPlatform = await this.platformRepo.save(platform);
       return PlatformDto.fromEntity(savedPlatform);
-    }catch (error) {
+    } catch (error) {
       this.logger.error(`Error while saving platform: ${error}`);
       if (error.code === '23505') { // Unique constraint violation error code for PostgreSQL
         throw new ConflictException('Platform name already exists');
@@ -170,7 +170,7 @@ export class HierarchyService implements ProjectAccessService {
       }
       throw error;
     }
-    
+
   }
 
   // Delete Device Type
@@ -186,25 +186,25 @@ export class HierarchyService implements ProjectAccessService {
 
   async getPlatformHierarchy(params: PlatformParams): Promise<PlatformHierarchyDto> {
     this.logger.debug(`Getting full hierarchy tree for platform: ${params.platformId}`);
-    const platform = await this.platformRepo.findOne({ 
+    const platform = await this.platformRepo.findOne({
       where: { id: params.platformId },
-      relations: { deviceTypes: {projects: true} }, 
-      select: { deviceTypes: { id: true, name: true, projects: {id: true, name: true} } } 
+      relations: { deviceTypes: { projects: { label: true } } },
+      select: { deviceTypes: { id: true, name: true, projects: { id: true, name: true, projectName: true, label: { id: true, name: true } } } }
     });
 
     if (!platform) {
       throw new NotFoundException(`Platform: '${params.platformId}' not found`);
     }
-    
+
     return PlatformHierarchyDto.fromPlatformEntity(platform);
   }
 
   async getDeviceTypeHierarchy(params: DeviceTypeParams): Promise<DeviceTypeHierarchyDto> {
     this.logger.debug(`Getting full hierarchy tree for device type: ${params.deviceTypeId}`);
-    const deviceType = await this.deviceTypeRepo.findOne({ 
+    const deviceType = await this.deviceTypeRepo.findOne({
       where: { id: params.deviceTypeId },
-      relations: { projects: true }, 
-      select: { projects: {id: true, name: true} } 
+      relations: { projects: { label: true } },
+      select: { projects: { id: true, name: true, projectName: true, label: { id: true, name: true } } }
     });
     if (!deviceType) {
       throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
@@ -214,12 +214,12 @@ export class HierarchyService implements ProjectAccessService {
 
 
   // add Device Type to Platform
-  async addDeviceTypeToPlatform(params: PlatformDeviceTypeParams){
+  async addDeviceTypeToPlatform(params: PlatformDeviceTypeParams) {
     this.logger.debug(`Add device type: '${params.deviceTypeId}' to platform: '${params.platformId}'`);
     const platform = await this.platformRepo.findOne({
-      where: { id: params.platformId }, 
+      where: { id: params.platformId },
       relations: { deviceTypes: true },
-      select: {deviceTypes: {id: true}}
+      select: { deviceTypes: { id: true } }
     });
     if (!platform) {
       throw new NotFoundException(`Platform: '${params.platformId}' not found`);
@@ -228,15 +228,15 @@ export class HierarchyService implements ProjectAccessService {
     if (platform.deviceTypes.some(dt => dt.id === params.deviceTypeId)) {
       throw new ConflictException(`Device type: '${params.deviceTypeId}' already exists in platform: '${params.platformId}'`);
     }
-    
+
     const deviceType = await this.deviceTypeRepo.findOneBy({ id: params.deviceTypeId });
     if (!deviceType) {
       throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
     }
-    
+
     platform.deviceTypes.push(deviceType);
     await this.platformRepo.save(platform);
-    
+
     return this.getPlatformHierarchy({ platformId: params.platformId });
   }
 
@@ -245,9 +245,9 @@ export class HierarchyService implements ProjectAccessService {
   async removeDeviceTypeFromPlatform(params: PlatformDeviceTypeParams) {
     this.logger.debug(`Remove device type: '${params.deviceTypeId}' from platform: '${params.platformId}'`);
     const platform = await this.platformRepo.findOne({
-      where: { id: params.platformId }, 
+      where: { id: params.platformId },
       relations: { deviceTypes: true },
-      select: {deviceTypes: {id: true}}
+      select: { deviceTypes: { id: true } }
     });
     if (!platform) {
       throw new NotFoundException(`Platform: '${params.platformId}' not found`);
@@ -260,7 +260,7 @@ export class HierarchyService implements ProjectAccessService {
 
     platform.deviceTypes.splice(deviceTypeIndex, 1);
     await this.platformRepo.save(platform);
-    
+
     return this.getPlatformHierarchy({ platformId: params.platformId });
   }
 
@@ -273,7 +273,7 @@ export class HierarchyService implements ProjectAccessService {
       relations: { projects: true },
       select: { projects: { id: true } }
     });
-    
+
     if (!deviceType) {
       throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
     }
@@ -290,7 +290,7 @@ export class HierarchyService implements ProjectAccessService {
 
     deviceType.projects.push(project);
     await this.deviceTypeRepo.save(deviceType);
-    
+
     return this.getDeviceTypeHierarchy({ deviceTypeId: params.deviceTypeId });
   }
 
@@ -302,7 +302,7 @@ export class HierarchyService implements ProjectAccessService {
       relations: { projects: true },
       select: { projects: { id: true } }
     });
-    
+
     if (!deviceType) {
       throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
     }
@@ -317,13 +317,13 @@ export class HierarchyService implements ProjectAccessService {
 
     return this.getDeviceTypeHierarchy({ deviceTypeId: params.deviceTypeId });
   }
- 
-  getMemberInProject(projectIdentifier: number | string,  email: string): Promise<MemberProjectEntity> {
+
+  getMemberInProject(projectIdentifier: number | string, email: string): Promise<MemberProjectEntity> {
     this.logger.verbose(`Get member in project: ${projectIdentifier}, with email: ${email}`)
 
     const projectCondition = typeof projectIdentifier === 'number'
-    ? { id: projectIdentifier }
-    : { name: projectIdentifier };
+      ? { id: projectIdentifier }
+      : { name: projectIdentifier };
 
     return this.memberProjectRepo.findOne({
       relations: ['project', 'member'],
@@ -333,7 +333,7 @@ export class HierarchyService implements ProjectAccessService {
       }
     }) as Promise<MemberProjectEntity>;
   }
-  
+
   async getProjectFromToken(token: string): Promise<ProjectEntity> {
     const payload = this.jwtService.verify(token)
     const project = await this.projectRepo.findOne({ where: { id: payload.data.projectId, tokens: { token: token, isActive: true } } })
