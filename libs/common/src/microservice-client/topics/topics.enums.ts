@@ -121,6 +121,12 @@ export const ProjectManagementTopics = {
     UPDATE_PROJECT_DOC: `getapp-project-management.update-project-doc${region}`,
     DELETE_PROJECT_DOC: `getapp-project-management.delete-project-doc${region}`,
 
+    // Labels
+    GET_LABELS: `getapp-project-management.get-labels${region}`,
+    CREATE_LABEL: `getapp-project-management.create-label${region}`,
+    UPDATE_LABEL: `getapp-project-management.update-label${region}`,
+    DELETE_LABEL: `getapp-project-management.delete-label${region}`,
+
     CHECK_HEALTH: `getapp-project-management.check-health${region}`
 } as const
 
