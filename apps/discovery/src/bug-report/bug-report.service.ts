@@ -5,21 +5,25 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { DeviceService } from "../device/device.service";
 import { DeviceDto } from "@app/common/dto/device/dto/device.dto";
-import { S3Service } from "@app/common/AWS/s3.service";
 import { MailService } from "@app/common/mail/mail.service";
+import { ConfigService } from "@nestjs/config";
+import { MinioClientService } from "@app/common/AWS/minio-client.service";
 
 
 @Injectable()
 export class BugReportService{
   private readonly logger = new Logger(BugReportService.name);
-
+  private bucketName;
   constructor(
     @InjectRepository(BugReportEntity) private readonly bugReportRepository: Repository<BugReportEntity>,
     @InjectRepository(DeviceEntity) private readonly deviceRepository: Repository<DeviceEntity>,
     private readonly deviceService: DeviceService,
-    private s3Service: S3Service,
     private mailService: MailService,
-  ){}
+    private readonly minio: MinioClientService,
+    private configService: ConfigService
+  ){
+    this.bucketName = this.configService.get('BUCKET_NAME')
+  }
 
 
 
@@ -40,8 +44,8 @@ export class BugReportService{
     res.logsPath = path;
     this.bugReportRepository.save(res);
 
-    const uploadUrl = await this.s3Service.generatePresignedUrlForUpload(path)
-    this.mailService.sendBugReport(bug.device.ID, bug.agentVersion, bug.description, (await (this.s3Service.generatePresignedUrlForDownload(bug.logsPath))))
+    const uploadUrl = await this.minio.generatePresignedUploadUrl(this.bucketName, path)
+    this.mailService.sendBugReport(bug.device.ID, bug.agentVersion, bug.description, (await (this.minio.generatePresignedDownloadUrl(this.bucketName, bug.logsPath))))
     return new NewBugReportResDto(res.id, uploadUrl)
   
   }
@@ -61,7 +65,7 @@ export class BugReportService{
     if (devices.length > 0){
       deviceDto = devices[0]
     }
-    const downloadUrl = await this.s3Service.generatePresignedUrlForDownload(bug.logsPath)
+    const downloadUrl = await this.minio.generatePresignedDownloadUrl(this.bucketName, bug.logsPath)
     return BugReportDto.fromEntity(bug, deviceDto, downloadUrl)
   }
   

@@ -19,6 +19,7 @@ import { BugReportService } from './bug-report/bug-report.service';
 import { S3Service } from '@app/common/AWS/s3.service';
 import { MailModule } from '@app/common/mail/mail.module';
 import { HttpModule } from '@nestjs/axios';
+import { MinioClientService } from '@app/common/AWS/minio-client.service';
 
 
 @Module({
@@ -37,6 +38,6 @@ import { HttpModule } from '@nestjs/axios';
     MailModule
   ],
   controllers: [DiscoveryController, GroupController, DeviceController, BugReportController],
-  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service],
+  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, MinioClientService],
 })
 export class DiscoveryModule {}
