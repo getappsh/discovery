@@ -14,7 +14,7 @@ export class MinioClientService implements OnModuleInit{
   private readonly downloadUrlExpire = Number(this.configService.get<number>('DOWNLOAD_URL_EXPIRE'))
 
   constructor(private configService: ConfigService){
-    let endpoint = this.configService.get('S3_ENDPOINT_INTERNAL').replace(/^https?:\/\//, '');
+    let endpoint = this.configService.get('S3_ENDPOINT_INTERNAL')?.replace(/^https?:\/\//, '');
     const accessKey = this.configService.get('ACCESS_KEY_ID');
     const secretKey = this.configService.get('SECRET_ACCESS_KEY');
     const useSSL = this.configService.get('MINIO_USE_SSL') === 'true';
@@ -73,11 +73,20 @@ export class MinioClientService implements OnModuleInit{
     return this.client.bucketExists(bucketName)
   }
 
+  createBucket(bucketName: string): Promise<void>{
+    return this.client.makeBucket(bucketName);
+  }
+
   async onModuleInit() {
     const bucketName = this.configService.get('BUCKET_NAME');
     try{
       const exists = await this.bucketExists(bucketName);
       this.logger.debug(`Bucket "${bucketName}" exists: ${exists}`)
+      if(!exists){
+        this.logger.log(`Bucket "${bucketName}" does not exist. Creating...`)
+        await this.createBucket(bucketName);
+        this.logger.log(`Bucket "${bucketName}" created`)
+      }
     }catch(err){
       this.logger.error(`Error checking bucket "${bucketName}": ${err}`)
     }
