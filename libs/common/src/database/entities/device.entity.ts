@@ -83,6 +83,10 @@ export class DeviceEntity {
   // })
   // platforms: PlatformEntity[];
 
+  /**
+   * @deprecated This field is deprecated and will be removed in the future
+   */
+  @Deprecated()
   @Column("text", { name: "formations", array: true, nullable: true })
   formations?: string[];
 
