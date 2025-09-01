@@ -46,7 +46,7 @@ export class DiscoveryService {
   private isNum = (num) => Number.isFinite ? Number.isFinite(+num) : isFinite(+num)
 
   private getPlatformByToken(token: string): Promise<PlatformEntity | null> {
-    
+
     if (this.isNum(token)) {
       const id = parseInt(token, 10);
       return this.platformRepo.findOne({ where: { id } });
@@ -78,7 +78,12 @@ export class DiscoveryService {
     device.formations = dto?.softwareData?.formations;
 
     if (dto.platform) device.platform = await this.getPlatformByToken(dto.platform.token) ?? undefined
-    if (dto.deviceTypeToken) device.deviceType = await this.getDeviceTypeByToken(dto.deviceTypeToken) ?? undefined
+    if (dto.deviceTypeToken) {
+      const deviceTypes = await Promise.all(
+        dto.deviceTypeToken.split(",").map(t => this.getDeviceTypeByToken(t))
+      );
+      device.deviceType = deviceTypes.filter((dt): dt is DeviceTypeEntity => dt !== null);
+    }
 
     // Only device there is no of type platform, can be a device children
     if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
