@@ -55,16 +55,19 @@ export class DiscoveryService {
     }
   }
 
-  private getDeviceTypeByToken(token: string): Promise<DeviceTypeEntity | null> {
+  private async getDeviceTypeByToken(token: string): Promise<DeviceTypeEntity | null> {
+    let de: DeviceTypeEntity | null = null;
     if (this.isNum(token)) {
       const id = parseInt(token, 10);
-      return this.deviceTypeRepo.findOne({ where: { id } });
+      de = await this.deviceTypeRepo.findOne({ where: { id } });
     } else {
-      return this.deviceTypeRepo.findOne({ where: { name: token } });
+      de = await this.deviceTypeRepo.findOne({ where: { name: token } });
     }
+    if (!de) this.logger.warn(`Device type not found for token: ${token}`);
+    return de;
   }
 
-  async setDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
+  async setDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity): Promise<DeviceEntity> {
     let device = await this.deviceRepo.findOne({ where: { ID: dto.id } })
       ?? this.deviceRepo.create({ ...dto.general?.physicalDevice, ID: dto.id });
 
@@ -80,7 +83,7 @@ export class DiscoveryService {
     if (dto.platform) device.platform = await this.getPlatformByToken(dto.platform.token) ?? undefined
     if (dto.deviceTypeToken) {
       const deviceTypes = await Promise.all(
-        dto.deviceTypeToken.split(",").map(t => this.getDeviceTypeByToken(t))
+        dto.deviceTypeToken.split(",").map(t => this.getDeviceTypeByToken(t.trim()))
       );
       device.deviceType = deviceTypes.filter((dt): dt is DeviceTypeEntity => dt !== null);
     }
