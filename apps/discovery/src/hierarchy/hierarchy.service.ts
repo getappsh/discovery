@@ -1,9 +1,11 @@
 import { DeviceTypeEntity, MemberProjectEntity, PlatformEntity, ProjectEntity } from "@app/common/database/entities";
 import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeHierarchyDto, DeviceTypeParams, DeviceTypeProjectParams, PlatformDeviceTypeParams, PlatformDto, PlatformHierarchyDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
+import { AppErrorException, ErrorCode } from "@app/common/dto/error";
 import { ProjectAccessService } from "@app/common/utils/project-access";
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
+import { createHash } from "crypto";
 import { ILike, Repository } from "typeorm";
 
 
@@ -28,7 +30,19 @@ export class HierarchyService implements ProjectAccessService {
       throw new ConflictException(`Platform name: "${dto.name}" already exists`);
     }
 
+    // Hash name to generate a numeric ID, then ensure uniqueness
+    const hashNameToId = (name: string): number => {
+      const hash = createHash('sha256').update(name).digest();
+      return hash.readUInt32BE(0) % 100_000_000;
+    };
+
+    let id = hashNameToId(dto.name);
+    while (await this.platformRepo.findOneBy({ id })) {
+      id = (id + 1) % 100_000_000;
+    }
+
     const platform = new PlatformEntity();
+    platform.id = id;
     platform.name = dto.name;
     platform.description = dto.description;
     platform.os = dto.os;
@@ -47,7 +61,7 @@ export class HierarchyService implements ProjectAccessService {
     } catch (error) {
       this.logger.error(`Error while saving platform: ${error}`);
       if (error.code === '23505') { // Unique constraint violation error code for PostgreSQL
-        throw new ConflictException('Platform name already exists');
+        throw AppErrorException.conflict(ErrorCode.DEVICE_PLATFORM_ALREADY_EXISTS, `Platform name '${dto.name}' already exists`);
       }
       throw error;
     }
@@ -58,7 +72,7 @@ export class HierarchyService implements ProjectAccessService {
     const platform = await this.platformRepo.findOneBy({ id: params.platformId });
     if (!platform) {
       this.logger.warn(`Platform with id ${params.platformId} not found`);
-      throw new NotFoundException('Platform not found');
+      throw AppErrorException.notFound(ErrorCode.DEVICE_PLATFORM_NOT_FOUND, `Platform: ${params.platformId} not found`);
     }
     return PlatformDto.fromEntity(platform);
   }
@@ -74,7 +88,7 @@ export class HierarchyService implements ProjectAccessService {
     this.logger.debug(`Update platform: ${dto.id}`);
     const platform = await this.platformRepo.findOneBy({ id: dto.id });
     if (!platform) {
-      throw new NotFoundException('Platform not found');
+      throw AppErrorException.notFound(ErrorCode.DEVICE_PLATFORM_NOT_FOUND, `Platform: ${dto.id} not found`);
     }
     Object.assign(platform, dto);
     try {
@@ -83,7 +97,7 @@ export class HierarchyService implements ProjectAccessService {
     } catch (error) {
       this.logger.error(`Error while saving platform: ${error}`);
       if (error.code === '23505') { // Unique constraint violation error code for PostgreSQL
-        throw new ConflictException('Platform name already exists');
+        throw AppErrorException.conflict(ErrorCode.DEVICE_PLATFORM_ALREADY_EXISTS, `Platform name '${dto.name}' already exists`);
       }
       throw error;
     }
@@ -95,7 +109,7 @@ export class HierarchyService implements ProjectAccessService {
     this.logger.debug(`Delete platform: ${params.platformId}`);
     const platform = await this.platformRepo.findOneBy({ id: params.platformId });
     if (!platform) {
-      throw new NotFoundException('Platform not found');
+      throw AppErrorException.notFound(ErrorCode.DEVICE_PLATFORM_NOT_FOUND, `Platform: ${params.platformId} not found`);
     }
     await this.platformRepo.remove(platform);
     return `Platform ${params.platformId} deleted successfully`;
@@ -110,7 +124,20 @@ export class HierarchyService implements ProjectAccessService {
     if (exists) {
       throw new ConflictException(`Device type name: "${dto.name}" already exists`);
     }
+
+    // Hash name to generate a numeric ID, then ensure uniqueness
+    const hashNameToId = (name: string): number => {
+      const hash = createHash('sha256').update(name).digest();
+      return hash.readUInt32BE(0) % 100_000_000;
+    };
+
+    let id = hashNameToId(dto.name);
+    while (await this.deviceTypeRepo.findOneBy({ id })) {
+      id = (id + 1) % 100_000_000;
+    }
+
     const deviceType = new DeviceTypeEntity();
+    deviceType.id = id;
     deviceType.name = dto.name;
     deviceType.description = dto.description;
     deviceType.os = dto.os;
@@ -129,7 +156,7 @@ export class HierarchyService implements ProjectAccessService {
     } catch (error) {
       this.logger.error(`Error while saving device type: ${error}`);
       if (error.code === '23505') {
-        throw new ConflictException('Device type name already exists');
+        throw AppErrorException.conflict(ErrorCode.DEVICE_DT_ALREADY_EXISTS, error);
       }
       throw error;
     }
@@ -140,7 +167,7 @@ export class HierarchyService implements ProjectAccessService {
     this.logger.debug(`Get device type: ${params.deviceTypeId}`);
     const deviceType = await this.deviceTypeRepo.findOneBy({ id: params.deviceTypeId });
     if (!deviceType) {
-      throw new NotFoundException(`Device type: ${params.deviceTypeId} not found`);
+      throw AppErrorException.notFound(ErrorCode.DEVICE_DT_NOT_FOUND, `Device type: ${params.deviceTypeId} not found`);
     }
     return DeviceTypeDto.fromEntity(deviceType);
   }
@@ -157,7 +184,7 @@ export class HierarchyService implements ProjectAccessService {
     this.logger.debug(`Update device type: ${dto.id}`);
     const deviceType = await this.deviceTypeRepo.findOneBy({ id: dto.id });
     if (!deviceType) {
-      throw new NotFoundException('Device type not found');
+      throw AppErrorException.notFound(ErrorCode.DEVICE_DT_NOT_FOUND, `Device type: ${dto.id} not found`);
     }
     Object.assign(deviceType, dto);
     try {
@@ -166,7 +193,7 @@ export class HierarchyService implements ProjectAccessService {
     } catch (error) {
       this.logger.error(`Error while saving device type: ${error}`);
       if (error.code === '23505') {
-        throw new ConflictException('Device type name already exists');
+        throw AppErrorException.conflict(ErrorCode.DEVICE_DT_ALREADY_EXISTS, `Device type name '${dto.name}' already exists`);
       }
       throw error;
     }
@@ -178,7 +205,7 @@ export class HierarchyService implements ProjectAccessService {
     this.logger.debug(`Delete device type: ${params.deviceTypeId}`);
     const deviceType = await this.deviceTypeRepo.findOneBy({ id: params.deviceTypeId });
     if (!deviceType) {
-      throw new NotFoundException('Device type not found');
+      throw AppErrorException.notFound(ErrorCode.DEVICE_DT_NOT_FOUND, `Device type: ${params.deviceTypeId} not found`);
     }
     await this.deviceTypeRepo.remove(deviceType);
     return `Device type ${params.deviceTypeId} deleted successfully`;
@@ -193,7 +220,7 @@ export class HierarchyService implements ProjectAccessService {
     });
 
     if (!platform) {
-      throw new NotFoundException(`Platform: '${params.platformId}' not found`);
+      throw AppErrorException.notFound(ErrorCode.DEVICE_PLATFORM_NOT_FOUND, `Platform: '${params.platformId}' not found`);
     }
 
     return PlatformHierarchyDto.fromPlatformEntity(platform);
@@ -207,7 +234,7 @@ export class HierarchyService implements ProjectAccessService {
       select: { projects: { id: true, name: true, projectName: true, label: { id: true, name: true } } }
     });
     if (!deviceType) {
-      throw new NotFoundException(`Device type: '${params.deviceTypeId}' not found`);
+      throw AppErrorException.notFound(ErrorCode.DEVICE_DT_NOT_FOUND, `Device type: '${params.deviceTypeId}' not found`);
     }
     return DeviceTypeHierarchyDto.fromDeviceTypeEntity(deviceType);
   }
