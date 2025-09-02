@@ -40,7 +40,11 @@ export enum ErrorCode {
 
   // devices
   DEVICE_NOT_FOUND = "DEVICE.notFound",
-  
+
+  // device type
+  DT_NOT_FOUND = "DEVICE_TYPE.notFound",
+  DT_ALREADY_EXISTS = "DEVICE_TYPE.alreadyExists",
+
   // groups
   GROUP_NOT_FOUND = "GROUP.notFound",
   GROUP_NOT_ALLOWED_TO_ADD = "GROUP.notAllowedToAdd",
@@ -84,6 +88,9 @@ export class ErrorDto {
       "`PLATFORM.notFound`: Platform with given id or name not found.<br/>" +
 
       "`DEVICE.notFound`: Device with given id not found.<br/>" +
+
+      "`DT_NOT_FOUND`: Device type with given id not found.<br/>" +
+      "`DT_ALREADY_EXISTS`: Device type with given name already exists.<br/>" +
 
       "`GROUP_NOT_FOUND`: Group with the given id was not found.<br/>" +
       "`GROUP_NOT_ALLOWED_TO_ADD`: Not allowed to add to the group, see message for cause.<br/>" +

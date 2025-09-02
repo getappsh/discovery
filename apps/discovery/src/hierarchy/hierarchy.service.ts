@@ -1,9 +1,11 @@
 import { DeviceTypeEntity, MemberProjectEntity, PlatformEntity, ProjectEntity } from "@app/common/database/entities";
 import { CreateDeviceTypeDto, CreatePlatformDto, DeviceTypeDto, DeviceTypeHierarchyDto, DeviceTypeParams, DeviceTypeProjectParams, PlatformDeviceTypeParams, PlatformDto, PlatformHierarchyDto, PlatformParams, UpdateDeviceTypeDto, UpdatePlatformDto } from "@app/common/dto/devices-hierarchy";
+import { AppErrorException, ErrorCode } from "@app/common/dto/error";
 import { ProjectAccessService } from "@app/common/utils/project-access";
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
+import { createHash } from "crypto";
 import { ILike, Repository } from "typeorm";
 
 
@@ -110,7 +112,20 @@ export class HierarchyService implements ProjectAccessService {
     if (exists) {
       throw new ConflictException(`Device type name: "${dto.name}" already exists`);
     }
+
+    // Hash name to generate a numeric ID, then ensure uniqueness
+    const hashNameToId = (name: string): number => {
+      const hash = createHash('sha256').update(name).digest();
+      return hash.readUInt32BE(0) % 100_000_000;
+    };
+
+    let id = hashNameToId(dto.name);
+    while (await this.deviceTypeRepo.findOneBy({ id })) {
+      id = (id + 1) % 100_000_000;
+    }
+
     const deviceType = new DeviceTypeEntity();
+    deviceType.id = id;
     deviceType.name = dto.name;
     deviceType.description = dto.description;
     deviceType.os = dto.os;
@@ -129,7 +144,7 @@ export class HierarchyService implements ProjectAccessService {
     } catch (error) {
       this.logger.error(`Error while saving device type: ${error}`);
       if (error.code === '23505') {
-        throw new ConflictException('Device type name already exists');
+        throw AppErrorException.conflict(ErrorCode.DT_ALREADY_EXISTS, error);
       }
       throw error;
     }
@@ -140,7 +155,7 @@ export class HierarchyService implements ProjectAccessService {
     this.logger.debug(`Get device type: ${params.deviceTypeId}`);
     const deviceType = await this.deviceTypeRepo.findOneBy({ id: params.deviceTypeId });
     if (!deviceType) {
-      throw new NotFoundException(`Device type: ${params.deviceTypeId} not found`);
+      throw AppErrorException.notFound(ErrorCode.DT_NOT_FOUND, `Device type: ${params.deviceTypeId} not found`);
     }
     return DeviceTypeDto.fromEntity(deviceType);
   }
