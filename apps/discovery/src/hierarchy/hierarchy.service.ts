@@ -30,7 +30,19 @@ export class HierarchyService implements ProjectAccessService {
       throw new ConflictException(`Platform name: "${dto.name}" already exists`);
     }
 
+    // Hash name to generate a numeric ID, then ensure uniqueness
+    const hashNameToId = (name: string): number => {
+      const hash = createHash('sha256').update(name).digest();
+      return hash.readUInt32BE(0) % 100_000_000;
+    };
+
+    let id = hashNameToId(dto.name);
+    while (await this.platformRepo.findOneBy({ id })) {
+      id = (id + 1) % 100_000_000;
+    }
+
     const platform = new PlatformEntity();
+    platform.id = id;
     platform.name = dto.name;
     platform.description = dto.description;
     platform.os = dto.os;
