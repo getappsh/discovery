@@ -126,7 +126,7 @@ export class DeviceController {
   private readImageVersion() {
     let version = 'unknown'
     try {
-      version = fs.readFileSync('NEW_TAG.txt', 'utf8');
+      version = fs.readFileSync('discovery_image_version', 'utf8');
     } catch (error) {
       this.logger.error(`Unable to read image version - error: ${error}`)
     }
