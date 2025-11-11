@@ -497,7 +497,7 @@ export class DeviceService {
     this.logger.debug(`Components to update or save: ${deviceComps}`);
 
     try {
-      if (deviceComps) {
+      if (deviceComps.length) {
         await this.deviceCompRepo.save(deviceComps)
       }
     } catch (err) {

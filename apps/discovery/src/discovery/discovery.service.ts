@@ -178,24 +178,40 @@ export class DiscoveryService {
   }
 
   private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]) {
+    this.logger.log(`Set components on device '${deviceId}' (v2) — processing ${compsState?.length ?? 0} component(s)`);
     const compsCatalogId = Array.from(new Set(compsState.map(comp => comp.catalogId)));
+
+    const normalizeId = (id: string) => {
+      const [namePart, version] = id.split("@");
+      return `${namePart.split('.').pop() || ""}@${version || ""}`;
+    };
+
+    const normalizedCompsCatalogId = compsCatalogId.map(normalizeId);
 
     let deviceComps: DeviceComponentStateDto[] = []
 
     // Find the registered components of the device, and set as uninstall if they are not in the list
-    // TODO: maybe to delete them here
-    let uninstalledComps = await this.deviceComponentRepo.find({
+    const allDeviceComps = await this.deviceComponentRepo.find({
       select: { device: { ID: true }, release: { catalogId: true } },
       where: {
         device: { ID: deviceId },
-        release: { catalogId: Not(In(compsCatalogId)) },
         state: Not(In([DeviceComponentStateEnum.PUSH, DeviceComponentStateEnum.OFFERING]))
       },
       relations: { release: true, device: true }
     });
 
+    const uninstalledComps = allDeviceComps.filter(c => 
+      !compsCatalogId.includes(c.release.catalogId) && 
+      !normalizedCompsCatalogId.includes(normalizeId(c.release.catalogId))
+    );
 
-    this.logger.debug(` comps ${uninstalledComps.map(c => c.release.catalogId)}`);
+    if (uninstalledComps.length) {
+      this.logger.debug(
+        `Set comps that not exist in message [${uninstalledComps
+          .map(c => c.release?.catalogId ?? 'unknown')
+          .join(', ')}] as uninstalled`
+      );
+    }
     uninstalledComps.forEach(c => {
       let dss = new DeviceComponentStateDto()
       dss.catalogId = c.release.catalogId;
@@ -206,13 +222,37 @@ export class DiscoveryService {
 
 
     const comps = await this.releaseRepo
-      .find({ where: { catalogId: In(compsCatalogId) }, select: { catalogId: true } })
+      .find({
+        where: [
+          { catalogId: In(compsCatalogId) },
+          ...compsCatalogId.map(id => {
+            const [namePart, version] = id.split("@");
+            return { version: version || "", project: { name: namePart.split('.').pop() || "" } };
+          })
+        ],
+        relations: { project: true },
+        select: { catalogId: true }
+      })
       .then(comps => comps.map(c => c.catalogId));
 
+    const normalizedComps = comps.map(normalizeId);
+    const uninstalledCatalogIds = new Set(uninstalledComps.map(u => u.release.catalogId));
 
     compsState
-      .filter(cs => comps.includes(cs.catalogId))
+      .filter(cs => comps.includes(cs.catalogId) || normalizedComps.includes(normalizeId(cs.catalogId)))
       .forEach(c => deviceComps.push(DeviceComponentStateDto.fromParent(c, deviceId)))
+
+    deviceComps = deviceComps
+      .map(c => {
+        if (comps.includes(c.catalogId) || uninstalledCatalogIds.has(c.catalogId)) return c
+        const correctCatalogId = comps.find(comp => normalizeId(comp) === normalizeId(c.catalogId))
+        if (correctCatalogId) {
+          c.catalogId = correctCatalogId
+          return c
+        }
+        return null
+      })
+      .filter((c): c is DeviceComponentStateDto => c !== null);
 
     this.logger.debug(`comps list to update or save ${deviceComps}`);
     await this.deviceService.updateDeviceSoftware(deviceComps);
