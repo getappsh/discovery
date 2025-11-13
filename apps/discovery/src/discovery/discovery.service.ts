@@ -1,6 +1,6 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Not, Repository } from 'typeorm';
+import { Brackets, DataSource, In, Not, Repository } from 'typeorm';
 import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceTypeEntity, DiscoveryType, PlatformEntity, ReleaseEntity } from '@app/common/database/entities';
 import { ComponentStateDto, DiscoveryMessageDto, DiscoveryMessageV2Dto } from '@app/common/dto/discovery';
 import { MTlsStatusDto } from '@app/common/dto/device';
@@ -9,6 +9,9 @@ import { DeviceService } from '../device/device.service';
 import { DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { ComponentV2Dto } from '@app/common/dto/upload';
 import { Injectable, Logger } from '@nestjs/common';
+import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
+import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
+import { AppError } from '@app/common/dto/error';
 
 @Injectable()
 export class DiscoveryService {
@@ -22,6 +25,8 @@ export class DiscoveryService {
     @InjectRepository(DeviceTypeEntity) private readonly deviceTypeRepo: Repository<DeviceTypeEntity>,
     @InjectRepository(ReleaseEntity) private readonly releaseRepo: Repository<ReleaseEntity>,
     private readonly deviceService: DeviceService,
+    private readonly deviceRepoService: DeviceRepoService,
+    private readonly dataSource: DataSource,
   ) {
   }
 
@@ -77,6 +82,7 @@ export class DiscoveryService {
     // Wrap dto.snapshotDate in Date, as microservice data loses type.
     if (parent && device.lastConnectionDate && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
 
+    device.name = dto.general?.personalDevice?.name;
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.formations = dto?.softwareData?.formations;
 
@@ -99,7 +105,26 @@ export class DiscoveryService {
     });
 
     this.logger.debug("save device")
-    return await this.deviceRepo.save(device)
+    const savedDevice = await this.deviceRepo.save(device)
+    if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
+      await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
+    }
+    return savedDevice
+  }
+
+  private async putDeviceOrgIdFromDiscovery(dto: DiscoveryMessageV2Dto, savedDevice: DeviceEntity) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      await this.deviceRepoService.updateDeviceOrgUID(queryRunner.manager, DevicePutDto.fromDeviceDiscovery(dto), savedDevice);
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`Set device org UID transaction failed - code: ${(err as AppError).errorCode}, mes: ${(err as AppError).message}`);
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async discoveryDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
@@ -145,7 +170,7 @@ export class DiscoveryService {
   }
 
   async discoveryMessage(discovery: DiscoveryMessageDto) {
-    let device = this.deviceRepo.create(discovery.general.physicalDevice);
+    let device = this.deviceRepo.create(discovery.general.physicalDevice!);
     this.logger.debug("save device")
     await this.deviceRepo.save(device)
 
@@ -200,8 +225,8 @@ export class DiscoveryService {
       relations: { release: true, device: true }
     });
 
-    const uninstalledComps = allDeviceComps.filter(c => 
-      !compsCatalogId.includes(c.release.catalogId) && 
+    const uninstalledComps = allDeviceComps.filter(c =>
+      !compsCatalogId.includes(c.release.catalogId) &&
       !normalizedCompsCatalogId.includes(normalizeId(c.release.catalogId))
     );
 
