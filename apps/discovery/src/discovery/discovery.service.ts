@@ -9,6 +9,8 @@ import { DeviceService } from '../device/device.service';
 import { DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { ComponentV2Dto } from '@app/common/dto/upload';
 import { Injectable, Logger } from '@nestjs/common';
+import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
+import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 
 @Injectable()
 export class DiscoveryService {
@@ -21,6 +23,7 @@ export class DiscoveryService {
     @InjectRepository(PlatformEntity) private readonly platformRepo: Repository<PlatformEntity>,
     @InjectRepository(ReleaseEntity) private readonly releaseRepo: Repository<ReleaseEntity>,
     private readonly deviceService: DeviceService,
+    private readonly deviceRepoService: DeviceRepoService,
   ) {
   }
 
@@ -44,12 +47,14 @@ export class DiscoveryService {
 
   async discoveryDeviceContext(dto: DiscoveryMessageV2Dto) {
     let device = this.deviceRepo.create(dto.general.physicalDevice);
+    device.name = dto.general.personalDevice.name;
     device.lastConnectionDate = new Date();
     device.formations = dto?.softwareData?.formations;
     device.platforms = await this.getOrCreatePlatforms(dto?.softwareData?.platforms)
 
     this.logger.debug("save device")
     await this.deviceRepo.save(device)
+    await this.deviceRepoService.updateDeviceOrgId(DevicePutDto.fromDeviceDiscovery(dto), device);
 
     if (dto.discoveryType === DiscoveryType.GET_APP && dto?.softwareData?.components) {
       await this.setCompsOnDeviceV2(device.ID, dto?.softwareData?.components)

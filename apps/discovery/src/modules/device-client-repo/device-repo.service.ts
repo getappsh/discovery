@@ -47,28 +47,44 @@ export class DeviceRepoService {
       throw new BadRequestException(mes)
     }
     this.logger.log(`Save props for device ${device.ID}`)
-    if (device.name !== undefined) {
+    if (p.name !== undefined && p.name !== device.name) {
+      this.logger.verbose(`Update device name from ${device.name} to ${p.name}`)
       device.name = p.name
     }
     const savedDevice = await this.deviceRepo.save(device)
 
-    let orgId: OrgUIDEntity;
-    if (p.orgUID) {
-      if (p.orgUID != null) {
-        // TODO handle duplicate case
-        orgId = this.orgIdEntity.create()
-        orgId.UID = p.orgUID
-        orgId.device = device
-
-      } else {
-        orgId = await this.orgIdEntity.findOne({ where: { device: { ID: device.ID } } })
-        orgId.device = null
-      }
-
-      const savedOrgId = await this.orgIdEntity.save(orgId);
-
-      savedDevice.orgUID = savedOrgId
+    if ("orgUID" in p) {
+      savedDevice.orgUID = await this.updateDeviceOrgId(p, device);
     }
     return DevicePutDto.fromDeviceEntity(savedDevice)
+  }
+
+  async updateDeviceOrgId(p: DevicePutDto, device: DeviceEntity) {
+    const orgId = await this.orgIdEntity.findOne({
+      where: { UID: p.orgUID },
+      relations: ['device']
+    }) || this.orgIdEntity.create({ UID: p.orgUID });
+
+    const oldOrgId = await this.orgIdEntity.findOne({ where: { device: { ID: device.ID } } });
+
+    if (p.orgUID != null) {
+      if (orgId.device && orgId.device.ID !== device.ID) {
+        this.logger.warn(`Changing orgUID '${orgId.UID}' from device '${orgId.device.ID}' to '${device.ID}'`);
+      }
+      orgId.UID = p.orgUID;
+      orgId.device = device;
+    } else {
+      orgId.device = null;
+    }
+
+    await this.orgIdEntity.manager.transaction(async (manager) => {
+      if (oldOrgId && oldOrgId.UID !== orgId.UID) {
+        oldOrgId.device = null;
+        await manager.save(OrgUIDEntity, oldOrgId);
+      }
+      await manager.upsert(OrgUIDEntity, orgId, ['UID']);
+    });
+
+    return await this.orgIdEntity.findOne({ where: { UID: orgId.UID } });
   }
 }
