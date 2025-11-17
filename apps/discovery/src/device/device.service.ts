@@ -436,7 +436,7 @@ export class DeviceService {
         await this.deviceMapRepo.save(deviceMaps)
       }
     } catch (err) {
-      this.logger.debug("failed to insert try to update")
+      this.logger.debug(`!failed to insert try to update: ${err}`)
 
       let queryBuilder = this.deviceMapRepo.createQueryBuilder("entity");
       queryBuilder.select("entity.device_ID")
@@ -501,7 +501,7 @@ export class DeviceService {
         await this.deviceCompRepo.save(deviceComps)
       }
     } catch (err) {
-      this.logger.debug("failed to insert try to update")
+      this.logger.debug(`?failed to insert try to update: ${err}`)
 
       let queryBuilder = this.deviceCompRepo.createQueryBuilder("entity");
       queryBuilder.select("entity.device_ID")
