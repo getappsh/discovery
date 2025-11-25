@@ -86,12 +86,14 @@ export class DiscoveryService {
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.formations = dto?.softwareData?.formations;
 
-    if (dto.platform) device.platform = await this.getPlatformByToken(dto.platform.token) ?? undefined
+    device.platform = dto.platform ? await this.getPlatformByToken(dto.platform.token) ?? undefined : null;
     if (dto.deviceTypeToken) {
       const deviceTypes = await Promise.all(
         dto.deviceTypeToken.split(",").map(t => this.getDeviceTypeByToken(t.trim()))
       );
       device.deviceType = deviceTypes.filter((dt): dt is DeviceTypeEntity => dt !== null);
+    } else {
+      device.deviceType = [];
     }
 
     // Only device there is no of type platform, can be a device children
