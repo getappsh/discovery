@@ -2,12 +2,14 @@ export enum OS {
     ANDROID = 'android',
     WINDOWS = 'windows',
     LINUX = 'linux',
+    MACOS = 'macos',
 }
 
 export enum Components {
     ANDROID = 'android',
     WINDOWS = 'windows',
     LINUX = 'linux',
+    MACOS = 'macos',
 }
 
 export enum Formation {
