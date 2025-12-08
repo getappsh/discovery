@@ -107,11 +107,26 @@ export class DiscoveryService {
     });
 
     this.logger.debug("save device")
-    const savedDevice = await this.deviceRepo.save(device)
-    if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
-      await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
+    try {
+      const savedDevice = await this.deviceRepo.save(device)
+      if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
+        await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
+      }
+      return savedDevice
+    } catch (error) {
+      this.logger.warn(`Device ${device.ID} already exists, updating existing record. Error: ${error.message}`)
+      // If save fails due to duplicate, fetch and update the existing device
+      const existingDevice = await this.deviceRepo.findOne({ where: { ID: device.ID } })
+      if (existingDevice) {
+        Object.assign(existingDevice, device)
+        const updatedDevice = await this.deviceRepo.save(existingDevice)
+        if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
+          await this.putDeviceOrgIdFromDiscovery(dto, updatedDevice);
+        }
+        return updatedDevice
+      }
+      throw error
     }
-    return savedDevice
   }
 
   private async putDeviceOrgIdFromDiscovery(dto: DiscoveryMessageV2Dto, savedDevice: DeviceEntity) {
