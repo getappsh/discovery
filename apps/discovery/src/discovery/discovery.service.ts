@@ -95,7 +95,7 @@ export class DiscoveryService {
     } else {
       device.deviceType = [];
     }
-
+                      
     // Only device there is no of type platform, can be a device children
     if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
 
@@ -106,27 +106,23 @@ export class DiscoveryService {
       }
     });
 
-    this.logger.debug("save device")
+    this.logger.debug("upsert device")
+    let savedDevice: DeviceEntity | null = null;
     try {
-      const savedDevice = await this.deviceRepo.save(device)
-      if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
-        await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
-      }
-      return savedDevice
-    } catch (error) {
-      this.logger.warn(`Device ${device.ID} already exists, updating existing record. Error: ${error.message}`)
-      // If save fails due to duplicate, fetch and update the existing device
-      const existingDevice = await this.deviceRepo.findOne({ where: { ID: device.ID } })
-      if (existingDevice) {
-        Object.assign(existingDevice, device)
-        const updatedDevice = await this.deviceRepo.save(existingDevice)
-        if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
-          await this.putDeviceOrgIdFromDiscovery(dto, updatedDevice);
-        }
-        return updatedDevice
-      }
-      throw error
+      // Upsert: insert or update on conflict
+      await this.deviceRepo.upsert(device, ["ID"]);
+    } catch (err) {
+      this.logger.error(`Device upsert failed: ${err}`);
     }
+    // Retrieve the entity after upsert
+    savedDevice = await this.deviceRepo.findOne({ where: { ID: device.ID } });
+    if (!savedDevice) {
+      throw new Error(`Device with ID ${device.ID} not found after upsert.`);
+    }
+    if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
+      await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
+    }
+    return savedDevice;
   }
 
   private async putDeviceOrgIdFromDiscovery(dto: DiscoveryMessageV2Dto, savedDevice: DeviceEntity) {
