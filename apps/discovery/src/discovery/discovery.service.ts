@@ -11,7 +11,7 @@ import { ComponentV2Dto } from '@app/common/dto/upload';
 import { Injectable, Logger } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
-import { AppError } from '@app/common/dto/error';
+import { AppError, ErrorCode } from '@app/common/dto/error';
 
 @Injectable()
 export class DiscoveryService {
@@ -117,7 +117,7 @@ export class DiscoveryService {
     // Retrieve the entity after upsert
     savedDevice = await this.deviceRepo.findOne({ where: { ID: device.ID } });
     if (!savedDevice) {
-      throw new Error(`Device with ID ${device.ID} not found after upsert.`);
+      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${device.ID} not found after upsert.`);
     }
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
       await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
