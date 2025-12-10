@@ -2,12 +2,14 @@ export enum OS {
     ANDROID = 'android',
     WINDOWS = 'windows',
     LINUX = 'linux',
+    MACOS = 'macos',
 }
 
 export enum Components {
     ANDROID = 'android',
     WINDOWS = 'windows',
     LINUX = 'linux',
+    MACOS = 'macos',
 }
 
 export enum Formation {
@@ -123,7 +125,7 @@ export enum DeviceComponentStateEnum{
     DELETED = "deleted",
     DEPLOY = "deploy",
     INSTALLED = "installed",
-    UNINSTALLED = "uninstalled",
+    UNINSTALLED = "uninstalled"
 }
 
 export enum OfferingActionEnum{

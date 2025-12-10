@@ -11,7 +11,7 @@ import { ComponentV2Dto } from '@app/common/dto/upload';
 import { Injectable, Logger } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
-import { AppError } from '@app/common/dto/error';
+import { AppError, ErrorCode } from '@app/common/dto/error';
 
 @Injectable()
 export class DiscoveryService {
@@ -95,7 +95,7 @@ export class DiscoveryService {
     } else {
       device.deviceType = [];
     }
-
+                      
     // Only device there is no of type platform, can be a device children
     if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
 
@@ -106,12 +106,23 @@ export class DiscoveryService {
       }
     });
 
-    this.logger.debug("save device")
-    const savedDevice = await this.deviceRepo.save(device)
+    this.logger.debug("upsert device")
+    let savedDevice: DeviceEntity | null = null;
+    try {
+      // Upsert: insert or update on conflict
+      await this.deviceRepo.upsert(device, ["ID"]);
+    } catch (err) {
+      this.logger.error(`Device upsert failed: ${err}`);
+    }
+    // Retrieve the entity after upsert
+    savedDevice = await this.deviceRepo.findOne({ where: { ID: device.ID } });
+    if (!savedDevice) {
+      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${device.ID} not found after upsert.`);
+    }
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
       await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
     }
-    return savedDevice
+    return savedDevice;
   }
 
   private async putDeviceOrgIdFromDiscovery(dto: DiscoveryMessageV2Dto, savedDevice: DeviceEntity) {

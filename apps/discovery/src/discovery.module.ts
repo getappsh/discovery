@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
-import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity } from '@app/common/database/entities';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity, DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -45,7 +45,8 @@ import { JwtModule } from '@nestjs/jwt';
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
        OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
-        DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity
+        DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity,
+        DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity
       ]),
     DeviceClientRepoModule,
     MailModule,
