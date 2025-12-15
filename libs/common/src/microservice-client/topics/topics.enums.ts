@@ -153,6 +153,7 @@ export const GetMapTopics = {
     EXPORT_NOTIFICATION: `getapp-map.export.notify${region}`,
     // Inventory
     GET_INVENTORY_UPDATES: `getapp-map.inventory.updates${region}`,
+    GET_INVENTORY_UPDATES_V2: `getapp-map.inventory.updates.v2${region}`,
     // admin
     MAP_PUT: `getapp-map.put${region}`,
     // Device
