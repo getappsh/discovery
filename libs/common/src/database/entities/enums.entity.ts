@@ -85,13 +85,15 @@ export enum ItemTypeEnum {
 }
 
 export enum MapImportStatusEnum {
+    DRAFT = 'Draft',
+    PENDING = 'Pending',
     START = 'Start',
     IN_PROGRESS = 'InProgress',
-    DONE = 'Done',
-    CANCEL = 'Cancel',
     PAUSED = 'Pause',
+    CANCEL = 'Cancel',
     ERROR = 'Error',
-    PENDING = 'Pending',
+    DONE = 'Done',
+    DISCOVERED = 'Discovered',
     EXPIRED = 'Expired',
     ARCHIVED = 'Archived',
 }
@@ -117,7 +119,7 @@ export enum DeviceMapStateEnum {
     UNINSTALLED = "uninstalled"
 }
 
-export enum DeviceComponentStateEnum{
+export enum DeviceComponentStateEnum {
     OFFERING = "offering",
     PUSH = "push",
     DELIVERY = "delivery",
@@ -128,7 +130,7 @@ export enum DeviceComponentStateEnum{
     UNINSTALLED = "uninstalled"
 }
 
-export enum OfferingActionEnum{
+export enum OfferingActionEnum {
     OFFERING = "offering",
     PUSH = "push"
 }
@@ -156,7 +158,7 @@ export enum ReleaseStatusEnum {
     APPROVED = 'approved',
     RELEASED = 'released',
     ARCHIVED = 'archived',
-  }
+}
 
 
 export enum ArtifactTypeEnum {
