@@ -472,7 +472,7 @@ export class DeviceService {
 
     if (!device) {
       this.logger.error(`device ${deviceId} not exits`)
-      throw new BadRequestException("Device not exits")
+      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, "Device with ID " + deviceId + " not found", HttpStatus.BAD_REQUEST);
     }
     let deviceDto = (await this.deviceToDevicesDto([device]))[0] || {} as DeviceDto;
 
