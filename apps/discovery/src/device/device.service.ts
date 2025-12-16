@@ -10,13 +10,15 @@ import { DeviceDto } from '@app/common/dto/device/dto/device.dto';
 import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-device-updates-dto';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
-import { DeviceSoftwareDto, DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
+import { DeviceSoftwareDto, DeviceComponentStateDto, SoftwareStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { ReleaseChangedEventDto } from '@app/common/dto/upload';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
-import { OfferingTopicsEmit } from '@app/common/microservice-client/topics';
+import { OfferingTopics, OfferingTopicsEmit } from '@app/common/microservice-client/topics';
 import { Deprecated } from '@app/common/decorators';
 import { AppError, ErrorCode } from '@app/common/dto/error';
 import { GroupService } from '../group/group.service';
+import { DeviceTypeOfferingDto } from '@app/common/dto/offering/dto/offering.dto';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class DeviceService {
@@ -475,9 +477,35 @@ export class DeviceService {
       this.logger.error(`device ${deviceId} not exits`)
       throw new AppError(ErrorCode.DEVICE_NOT_FOUND, "Device with ID " + deviceId + " not found", HttpStatus.BAD_REQUEST);
     }
+
+    const offerByDeviceTypePromise = Promise.all(
+      (device.deviceType ?? []).map(dt =>
+        lastValueFrom(this.offeringClient.send<DeviceTypeOfferingDto>(OfferingTopics.GET_OFFERING_FOR_DEVICE_TYPE, { deviceTypeIdentifier: dt.id }))
+      )
+    );
+
     let deviceDto = (await this.deviceToDevicesDto([device]))[0] || {} as DeviceDto;
 
-    return DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
+
+    const res = DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
+
+    // Await the offerByDeviceType only before return (if needed)
+    const offerByDeviceType = await offerByDeviceTypePromise;
+    // Collect all additional software offerings from the device type offerings
+    const additionalSoftwares: SoftwareStateDto[] = offerByDeviceType
+      .flatMap(offer =>
+        (offer.projects ?? [])
+          .filter(project => project.release)
+          .map(project => {
+            const dto = new SoftwareStateDto();
+            dto.software = project.release!;
+            dto.state = DeviceComponentStateEnum.OFFERING;
+            return dto;
+          })
+      );
+
+    res.softwares = [...res.softwares, ...additionalSoftwares];
+    return res;
   }
 
 
@@ -608,7 +636,7 @@ export class DeviceService {
       return
     }
     this.logger.verbose(`send software installed event`);
-    await this.offeringClient.emit(OfferingTopicsEmit.DEVICE_SOFTWARE_EVENT, event);
+    this.offeringClient.emit(OfferingTopicsEmit.DEVICE_SOFTWARE_EVENT, event);
   }
 
   async sendMapInstallEvent2Offering(event: DeviceMapStateDto) {
@@ -616,7 +644,7 @@ export class DeviceService {
       return
     }
     this.logger.verbose(`Send map installed event`);
-    await this.offeringClient.emit(OfferingTopicsEmit.DEVICE_MAP_EVENT, event);
+    this.offeringClient.emit(OfferingTopicsEmit.DEVICE_MAP_EVENT, event);
   }
 
   async releaseChangedEvent(dto: ReleaseChangedEventDto) {
