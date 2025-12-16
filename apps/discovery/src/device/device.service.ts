@@ -457,13 +457,14 @@ export class DeviceService {
     this.logger.debug(`get softwares for device ${deviceId}`);
     let device = await this.deviceRepo.findOne({
       where: { ID: deviceId },
-      relations: { components: { release: { project: true } } },
+      relations: { components: { release: { project: true, artifacts: {fileUpload: true} } } },
       select: {
         components: {
           id: true, state: true, error: true, downloadedAt: true, deployedAt: true,
           release: {
             version: true, catalogId: true, releaseNotes: true, latest: true,
             status: true, createdAt: true, updatedAt: true, releasedAt: true,
+            artifacts: { id: true, isInstallationFile: true, fileUpload: { size: true } },
             project: { name: true, projectType: true, id: true }
           },
         }
