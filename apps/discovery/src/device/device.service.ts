@@ -19,6 +19,7 @@ import { AppError, ErrorCode } from '@app/common/dto/error';
 import { GroupService } from '../group/group.service';
 import { DeviceTypeOfferingDto } from '@app/common/dto/offering/dto/offering.dto';
 import { lastValueFrom } from 'rxjs';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class DeviceService {
@@ -39,7 +40,8 @@ export class DeviceService {
     @InjectRepository(MapOfferingEntity) private readonly mapOfferingRepo: Repository<MapOfferingEntity>,
     @Inject(MicroserviceName.OFFERING_SERVICE) private readonly offeringClient: MicroserviceClient,
     private deviceRepoS: DeviceRepoService,
-    private groupService: GroupService
+    private groupService: GroupService,
+    private hierarchyService: HierarchyService,
   ) { }
 
   async getRegisteredDevices(groups?: string[]): Promise<DeviceDto[]> {
@@ -479,9 +481,11 @@ export class DeviceService {
     }
 
     const offerByDeviceTypePromise = Promise.all(
-      (device.deviceType ?? []).map(dt =>
-        lastValueFrom(this.offeringClient.send<DeviceTypeOfferingDto>(OfferingTopics.GET_OFFERING_FOR_DEVICE_TYPE, { deviceTypeIdentifier: dt.id }))
-      )
+      (device.deviceType ?? []).map(async dt => {
+        // TODO check why without passing the dtTree the topic deadlocks
+        const dtTree = await this.hierarchyService.getDeviceTypeHierarchy({ deviceTypeId: dt.id });        
+        return lastValueFrom(this.offeringClient.send<DeviceTypeOfferingDto>(OfferingTopics.GET_OFFERING_FOR_DEVICE_TYPE, { deviceTypeIdentifier: dt.id, deviceTypeTree: dtTree }));
+      })
     );
 
     let deviceDto = (await this.deviceToDevicesDto([device]))[0] || {} as DeviceDto;
