@@ -123,10 +123,18 @@ export class DiscoveryService {
       throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${device.ID} not found after upsert.`);
     }
     
-    // Update many-to-many relationship for deviceType after upsert
+    // Update many-to-many relationship for deviceType after upsert using query builder
     if (deviceTypes !== undefined) {
-      savedDevice.deviceType = deviceTypes;
-      await this.deviceRepo.save(savedDevice);
+      // Delete existing relationships
+      await this.deviceRepo
+        .createQueryBuilder()
+        .relation(DeviceEntity, "deviceType")
+        .of(savedDevice.ID)
+        .addAndRemove(deviceTypes, await this.deviceRepo
+          .createQueryBuilder()
+          .relation(DeviceEntity, "deviceType")
+          .of(savedDevice.ID)
+          .loadMany());
       this.logger.debug(`Device types updated: ${deviceTypes?.length || 0} type(s)`);
     }
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
