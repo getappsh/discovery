@@ -123,42 +123,36 @@ export class DiscoveryService {
       throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${device.ID} not found after upsert.`);
     }
     
-    // Update many-to-many relationship for deviceType after upsert using query builder
-    if (deviceTypes !== undefined) {
-      try {
-        const relationBuilder = this.deviceRepo
+    // Update many-to-many relationship for deviceType after upsert
+    if (deviceTypes !== undefined && deviceTypes.length >= 0) {
+        const deviceTypeIds = deviceTypes.map(dt => dt.id);
+        
+        // Delete existing relationships that are not in the new list
+        const deleteQuery = this.dataSource
           .createQueryBuilder()
-          .relation(DeviceEntity, "deviceType")
-          .of(savedDevice.ID);
+          .delete()
+          .from("device_device_types")
+          .where("device_id = :deviceId", { deviceId: savedDevice.ID });
         
-        // Load existing device types to compare
-        const existingTypes = await relationBuilder.loadMany<DeviceTypeEntity>();
-        
-        // Check if the device types have actually changed
-        const existingIds = new Set(existingTypes.map(dt => dt.id));
-        const newIds = new Set(deviceTypes.map(dt => dt.id));
-        
-        const hasChanges = existingIds.size !== newIds.size || 
-          [...newIds].some(id => !existingIds.has(id));
-        
-        if (hasChanges) {
-          // Remove all existing relationships
-          if (existingTypes.length > 0) {
-            await relationBuilder.remove(existingTypes);
-          }
-          
-          // Add all new relationships
-          if (deviceTypes.length > 0) {
-            await relationBuilder.add(deviceTypes);
-          }
-          
-          this.logger.debug(`Device types updated: ${deviceTypes.length} type(s) (previously ${existingTypes.length})`);
-        } else {
-          this.logger.debug(`Device types unchanged: ${deviceTypes.length} type(s)`);
+        if (deviceTypeIds.length > 0) {
+          deleteQuery.andWhere("device_type_id NOT IN (:...deviceTypeIds)", { deviceTypeIds });
         }
-      } catch (err) {
-        this.logger.warn(`Device type update failed but continuing: ${err.message || err}`);
-      }
+        
+        await deleteQuery.execute();
+        
+        // Insert new relationships (orIgnore handles duplicates)
+        if (deviceTypeIds.length > 0) {
+          await this.dataSource
+            .createQueryBuilder()
+            .insert()
+            .into("device_device_types")
+            .values(deviceTypeIds.map(id => ({ device_id: savedDevice.ID, device_type_id: id })))
+            .orIgnore()
+            .execute();
+        }
+        
+        this.logger.debug(`Device types updated: ${deviceTypes.length} type(s)`);
+
     }
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
       await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
