@@ -141,6 +141,7 @@ export class DiscoveryService {
         await deleteQuery.execute();
         
         // Insert new relationships (orIgnore handles duplicates)
+        //add or save typeOrm function might fail due to unique constraint, so we use query builder with orIgnore
         if (deviceTypeIds.length > 0) {
           await this.dataSource
             .createQueryBuilder()
