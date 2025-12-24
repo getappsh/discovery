@@ -125,17 +125,38 @@ export class DiscoveryService {
     
     // Update many-to-many relationship for deviceType after upsert using query builder
     if (deviceTypes !== undefined) {
-      // Delete existing relationships
-      await this.deviceRepo
+      // Load existing device types
+      const existingTypes = await this.deviceRepo
         .createQueryBuilder()
         .relation(DeviceEntity, "deviceType")
         .of(savedDevice.ID)
-        .addAndRemove(deviceTypes, await this.deviceRepo
-          .createQueryBuilder()
-          .relation(DeviceEntity, "deviceType")
-          .of(savedDevice.ID)
-          .loadMany());
-      this.logger.debug(`Device types updated: ${deviceTypes?.length || 0} type(s)`);
+        .loadMany();
+      
+      // Find device types to add (in new list but NOT in existing)
+      const toAdd = deviceTypes.filter(newType => 
+        !existingTypes.some(existing => existing.id === newType.id)
+      );
+      
+      // Find device types to remove (in existing but NOT in new list)
+      const toRemove = existingTypes.filter(existing => 
+        !deviceTypes.some(newType => newType.id === existing.id)
+      );
+      
+      const relationBuilder = this.deviceRepo
+        .createQueryBuilder()
+        .relation(DeviceEntity, "deviceType")
+        .of(savedDevice.ID);
+      
+      // Remove first, then add
+      if (toRemove.length > 0) {
+        await relationBuilder.remove(toRemove);
+      }
+      
+      if (toAdd.length > 0) {
+        await relationBuilder.add(toAdd);
+      }
+      
+      this.logger.debug(`Device types updated: added ${toAdd.length}, removed ${toRemove.length}, kept ${existingTypes.length - toRemove.length}`);
     }
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
       await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
