@@ -125,38 +125,36 @@ export class DiscoveryService {
     
     // Update many-to-many relationship for deviceType after upsert using query builder
     if (deviceTypes !== undefined) {
-      // Load existing device types
-      const existingTypes = await this.deviceRepo
-        .createQueryBuilder()
-        .relation(DeviceEntity, "deviceType")
-        .of(savedDevice.ID)
-        .loadMany();
-      
-      // Find device types to add (in new list but NOT in existing)
-      const toAdd = deviceTypes.filter(newType => 
-        !existingTypes.some(existing => existing.id === newType.id)
-      );
-      
-      // Find device types to remove (in existing but NOT in new list)
-      const toRemove = existingTypes.filter(existing => 
-        !deviceTypes.some(newType => newType.id === existing.id)
-      );
-      
       const relationBuilder = this.deviceRepo
         .createQueryBuilder()
         .relation(DeviceEntity, "deviceType")
         .of(savedDevice.ID);
       
-      // Remove first, then add
-      if (toRemove.length > 0) {
-        await relationBuilder.remove(toRemove);
-      }
+      // Load existing device types to compare
+      const existingTypes = await relationBuilder.loadMany<DeviceTypeEntity>();
       
-      if (toAdd.length > 0) {
-        await relationBuilder.add(toAdd);
-      }
+      // Check if the device types have actually changed
+      const existingIds = new Set(existingTypes.map(dt => dt.id));
+      const newIds = new Set(deviceTypes.map(dt => dt.id));
       
-      this.logger.debug(`Device types updated: added ${toAdd.length}, removed ${toRemove.length}, kept ${existingTypes.length - toRemove.length}`);
+      const hasChanges = existingIds.size !== newIds.size || 
+        [...newIds].some(id => !existingIds.has(id));
+      
+      if (hasChanges) {
+        // Remove all existing relationships
+        if (existingTypes.length > 0) {
+          await relationBuilder.remove(existingTypes);
+        }
+        
+        // Add all new relationships
+        if (deviceTypes.length > 0) {
+          await relationBuilder.add(deviceTypes);
+        }
+        
+        this.logger.debug(`Device types updated: ${deviceTypes.length} type(s) (previously ${existingTypes.length})`);
+      } else {
+        this.logger.debug(`Device types unchanged: ${deviceTypes.length} type(s)`);
+      }
     }
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
       await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
