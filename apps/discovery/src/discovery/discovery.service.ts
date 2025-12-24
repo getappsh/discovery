@@ -99,6 +99,9 @@ export class DiscoveryService {
     // Only device there is no of type platform, can be a device children
     if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
 
+    // Store deviceType before upsert (will be used to update many-to-many relationship)
+    const deviceTypes = device.deviceType;
+
     // Convert undefined properties to null before saving
     Object.keys(device).forEach(key => {
       if (device[key] === undefined) {
@@ -118,6 +121,13 @@ export class DiscoveryService {
     savedDevice = await this.deviceRepo.findOne({ where: { ID: device.ID } });
     if (!savedDevice) {
       throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${device.ID} not found after upsert.`);
+    }
+    
+    // Update many-to-many relationship for deviceType after upsert
+    if (deviceTypes !== undefined) {
+      savedDevice.deviceType = deviceTypes;
+      await this.deviceRepo.save(savedDevice);
+      this.logger.debug(`Device types updated: ${deviceTypes?.length || 0} type(s)`);
     }
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
       await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
