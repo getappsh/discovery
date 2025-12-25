@@ -72,6 +72,49 @@ export class DiscoveryService {
     return de;
   }
 
+  private async handleDeviceTypes(deviceTypeToken: string | undefined, device: DeviceEntity, savedDevice: DeviceEntity): Promise<void> {
+    let deviceTypes: DeviceTypeEntity[] = [];
+    
+    if (deviceTypeToken) {
+      const deviceTypesList = await Promise.all(
+        deviceTypeToken.split(",").map(t => this.getDeviceTypeByToken(t.trim()))
+      );
+      deviceTypes = deviceTypesList.filter((dt): dt is DeviceTypeEntity => dt !== null);
+    }
+
+    // Update many-to-many relationship for deviceType after upsert
+    if (deviceTypes !== undefined && deviceTypes.length >= 0) {
+        const deviceTypeIds = deviceTypes.map(dt => dt.id);
+        
+        // Delete existing relationships that are not in the new list
+        const deleteQuery = this.dataSource
+          .createQueryBuilder()
+          .delete()
+          .from("device_device_types")
+          .where("device_id = :deviceId", { deviceId: savedDevice.ID });
+        
+        if (deviceTypeIds.length > 0) {
+          deleteQuery.andWhere("device_type_id NOT IN (:...deviceTypeIds)", { deviceTypeIds });
+        }
+        
+        await deleteQuery.execute();
+        
+        // Insert new relationships (orIgnore handles duplicates)
+        //add or save typeOrm function might fail due to unique constraint, so we use query builder with orIgnore
+        if (deviceTypeIds.length > 0) {
+          await this.dataSource
+            .createQueryBuilder()
+            .insert()
+            .into("device_device_types")
+            .values(deviceTypeIds.map(id => ({ device_id: savedDevice.ID, device_type_id: id })))
+            .orIgnore()
+            .execute();
+        }
+        
+        this.logger.debug(`Device types updated: ${deviceTypes.length} type(s)`);
+    }
+  }
+
   async setDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity): Promise<DeviceEntity> {
     let device = await this.deviceRepo.findOne({ where: { ID: dto.id } })
       ?? this.deviceRepo.create({ ...dto.general?.physicalDevice, ID: dto.id });
@@ -87,14 +130,7 @@ export class DiscoveryService {
     device.formations = dto?.softwareData?.formations;
 
     device.platform = dto.platform ? await this.getPlatformByToken(dto.platform.token) ?? undefined : null;
-    if (dto.deviceTypeToken) {
-      const deviceTypes = await Promise.all(
-        dto.deviceTypeToken.split(",").map(t => this.getDeviceTypeByToken(t.trim()))
-      );
-      device.deviceType = deviceTypes.filter((dt): dt is DeviceTypeEntity => dt !== null);
-    } else {
-      device.deviceType = [];
-    }
+    device.deviceType = [];
                       
     // Only device there is no of type platform, can be a device children
     if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
@@ -119,6 +155,10 @@ export class DiscoveryService {
     if (!savedDevice) {
       throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${device.ID} not found after upsert.`);
     }
+    
+    // Handle device types and update many-to-many relationship
+    await this.handleDeviceTypes(dto.deviceTypeToken, device, savedDevice);
+    
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
       await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
     }
