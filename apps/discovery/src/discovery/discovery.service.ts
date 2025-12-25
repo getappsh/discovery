@@ -72,57 +72,16 @@ export class DiscoveryService {
     return de;
   }
 
-  async setDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity): Promise<DeviceEntity> {
-    let device = await this.deviceRepo.findOne({ where: { ID: dto.id } })
-      ?? this.deviceRepo.create({ ...dto.general?.physicalDevice, ID: dto.id });
-
-    // If the device's last connection date is more recent than the snapshot date,
-    // it means a newer message has already been processed for this device.
-
-    // Wrap dto.snapshotDate in Date, as microservice data loses type.
-    if (parent && device.lastConnectionDate && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
-
-    device.name = dto.general?.personalDevice?.name;
-    device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
-    device.formations = dto?.softwareData?.formations;
-
-    device.platform = dto.platform ? await this.getPlatformByToken(dto.platform.token) ?? undefined : null;
-    if (dto.deviceTypeToken) {
-      const deviceTypes = await Promise.all(
-        dto.deviceTypeToken.split(",").map(t => this.getDeviceTypeByToken(t.trim()))
-      );
-      device.deviceType = deviceTypes.filter((dt): dt is DeviceTypeEntity => dt !== null);
-    } else {
-      device.deviceType = [];
-    }
-                      
-    // Only device there is no of type platform, can be a device children
-    if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
-
-    // Store deviceType before upsert (will be used to update many-to-many relationship)
-    const deviceTypes = device.deviceType;
-
-    // Convert undefined properties to null before saving
-    Object.keys(device).forEach(key => {
-      if (device[key] === undefined) {
-        device[key] = null;
-      }
-    });
-
-    this.logger.debug("upsert device")
-    let savedDevice: DeviceEntity | null = null;
-    try {
-      // Upsert: insert or update on conflict
-      await this.deviceRepo.upsert(device, ["ID"]);
-    } catch (err) {
-      this.logger.error(`Device upsert failed: ${err}`);
-    }
-    // Retrieve the entity after upsert
-    savedDevice = await this.deviceRepo.findOne({ where: { ID: device.ID } });
-    if (!savedDevice) {
-      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${device.ID} not found after upsert.`);
-    }
+  private async handleDeviceTypes(deviceTypeToken: string | undefined, device: DeviceEntity, savedDevice: DeviceEntity): Promise<void> {
+    let deviceTypes: DeviceTypeEntity[] = [];
     
+    if (deviceTypeToken) {
+      const deviceTypesList = await Promise.all(
+        deviceTypeToken.split(",").map(t => this.getDeviceTypeByToken(t.trim()))
+      );
+      deviceTypes = deviceTypesList.filter((dt): dt is DeviceTypeEntity => dt !== null);
+    }
+
     // Update many-to-many relationship for deviceType after upsert
     if (deviceTypes !== undefined && deviceTypes.length >= 0) {
         const deviceTypeIds = deviceTypes.map(dt => dt.id);
@@ -153,8 +112,53 @@ export class DiscoveryService {
         }
         
         this.logger.debug(`Device types updated: ${deviceTypes.length} type(s)`);
-
     }
+  }
+
+  async setDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity): Promise<DeviceEntity> {
+    let device = await this.deviceRepo.findOne({ where: { ID: dto.id } })
+      ?? this.deviceRepo.create({ ...dto.general?.physicalDevice, ID: dto.id });
+
+    // If the device's last connection date is more recent than the snapshot date,
+    // it means a newer message has already been processed for this device.
+
+    // Wrap dto.snapshotDate in Date, as microservice data loses type.
+    if (parent && device.lastConnectionDate && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
+
+    device.name = dto.general?.personalDevice?.name;
+    device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
+    device.formations = dto?.softwareData?.formations;
+
+    device.platform = dto.platform ? await this.getPlatformByToken(dto.platform.token) ?? undefined : null;
+    device.deviceType = [];
+                      
+    // Only device there is no of type platform, can be a device children
+    if (!dto.platform) { device.parent = parent } else { device.parent = undefined }
+
+    // Convert undefined properties to null before saving
+    Object.keys(device).forEach(key => {
+      if (device[key] === undefined) {
+        device[key] = null;
+      }
+    });
+
+    this.logger.debug("upsert device")
+    let savedDevice: DeviceEntity | null = null;
+    try {
+      // Upsert: insert or update on conflict
+      await this.deviceRepo.upsert(device, ["ID"]);
+    } catch (err) {
+      this.logger.error(`Device upsert failed: ${err}`);
+    }
+    // Retrieve the entity after upsert
+    savedDevice = await this.deviceRepo.findOne({ where: { ID: device.ID } });
+    if (!savedDevice) {
+      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${device.ID} not found after upsert.`);
+    }
+    
+    // Handle device types and update many-to-many relationship
+    await this.handleDeviceTypes(dto.deviceTypeToken, device, savedDevice);
+    
     if (dto.general?.physicalDevice && 'serialNumber' in dto.general?.physicalDevice) {
       await this.putDeviceOrgIdFromDiscovery(dto, savedDevice);
     }
