@@ -266,9 +266,18 @@ export class DiscoveryService {
     const uninstalledCatalogIds = new Set(uninstalledComps.map(u => u.release.catalogId));
 
     // Detect and record unknown versions (not found in releases)
-    const unknownVersions = compsCatalogId.filter(catalogId => {
-      // Skip if catalogId starts with 0 (scenario 1 - agent hasn't synced yet)
-      if (catalogId.startsWith('0.')) {
+    const unknownVersions = compsState.filter(compState => {
+      const catalogId = compState.catalogId;
+      
+      // Parse the catalogId (format: "namespace.projectName@version" or "projectName@version")
+      const [namePart, version] = catalogId.split("@");
+      
+      // Skip if the identifier part starts with 0 AND it's in OFFERING or PUSH state
+      // (scenario 1 - agent hasn't synced the project identifier yet, will be resolved by agent)
+      // But if it's INSTALLED/DEPLOYED/etc, the 0 might be the real identifier
+      if (namePart && namePart.startsWith('0') && 
+          (compState.state === DeviceComponentStateEnum.OFFERING || 
+           compState.state === DeviceComponentStateEnum.PUSH)) {
         return false;
       }
       
@@ -279,23 +288,22 @@ export class DiscoveryService {
 
     // Record unknown versions for later review
     if (unknownVersions.length > 0) {
-      this.logger.warn(`Found ${unknownVersions.length} unknown version(s) from device ${deviceId}: ${unknownVersions.join(', ')}`);
+      this.logger.warn(`Found ${unknownVersions.length} unknown version(s) from device ${deviceId}: ${unknownVersions.map(v => v.catalogId).join(', ')}`);
       
-      for (const catalogId of unknownVersions) {
+      for (const compState of unknownVersions) {
+        const catalogId = compState.catalogId;
         const [namePart, version] = catalogId.split("@");
-        const projectName = namePart.split('.').pop() || namePart;
+        const projectName = namePart?.split('.').pop() || namePart;
         
-        if (version && projectName) {
-          // Record this unknown version asynchronously (don't block the discovery flow)
-          this.pendingVersionService.recordPendingVersion(
-            projectName,
-            version,
-            deviceId,
-            catalogId
-          ).catch(err => {
-            this.logger.error(`Failed to record pending version ${catalogId}: ${err.message}`);
-          });
-        }
+        // Always record, even if version or projectName are missing - we want to know about malformed IDs too
+        this.pendingVersionService.recordPendingVersion(
+          projectName || 'unknown',
+          version || 'unknown',
+          deviceId,
+          catalogId
+        ).catch(err => {
+          this.logger.error(`Failed to record pending version ${catalogId}: ${err.message}`);
+        });
       }
     }
 
