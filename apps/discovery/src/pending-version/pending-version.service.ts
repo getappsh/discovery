@@ -15,6 +15,7 @@ import { CreateProjectDto } from '@app/common/dto/project-management';
 import { SetReleaseDto } from '@app/common/dto/upload';
 import { lastValueFrom } from 'rxjs';
 import { ProjectType } from '@app/common/database/entities';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class PendingVersionService {
@@ -27,6 +28,7 @@ export class PendingVersionService {
     private readonly projectManagementClient: MicroserviceClient,
     @Inject(MicroserviceName.UPLOAD_SERVICE) 
     private readonly uploadClient: MicroserviceClient,
+    private readonly cls: ClsService,
   ) {}
 
   /**
@@ -149,14 +151,15 @@ export class PendingVersionService {
 
     try {
       // First, check if project exists, if not create it
+      let project: any;
       try {
-        await lastValueFrom(
+        project = await lastValueFrom(
           this.projectManagementClient.send(
             ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER, 
             dto.projectName
           )
         );
-        this.logger.log(`Project ${dto.projectName} already exists`);
+        this.logger.log(`Project ${dto.projectName} already exists with ID: ${project.id}`);
       } catch (error) {
         // Project doesn't exist, create it
         this.logger.log(`Project ${dto.projectName} not found, creating it`);
@@ -169,14 +172,15 @@ export class PendingVersionService {
           username: dto.username
         };
         
-        await lastValueFrom(
+        project = await lastValueFrom(
           this.projectManagementClient.send(ProjectManagementTopics.CREATE_PROJECT, createProjectDto)
         );
-        this.logger.log(`Created project: ${dto.projectName}`);
+        this.logger.log(`Created project: ${dto.projectName} with ID: ${project.id}`);
       }
 
-      // Now create the release/version
-      const setReleaseDto: Partial<SetReleaseDto> & { projectIdentifier: string; version: string } = {
+      // Now create the release/version using the projectId
+      const setReleaseDto: Partial<SetReleaseDto> & { projectId: number; version: string } = {
+        projectId: project.id,
         projectIdentifier: dto.projectName,
         version: dto.version,
         name: `v${dto.version}`,
@@ -190,6 +194,9 @@ export class PendingVersionService {
         isDraft: dto.isDraft ?? true,
         dependencies: []
       };
+
+      // Set user context in CLS for the upload service guard to accept the request
+      this.cls.set('user', { email: dto.username, preferred_username: dto.username });
 
       await lastValueFrom(
         this.uploadClient.send(UploadTopics.SET_RELEASE, setReleaseDto)
