@@ -7,11 +7,14 @@ import {
   PendingVersionDto, 
   PendingVersionListDto, 
   RejectPendingVersionDto,
-  CreateProjectVersionDto 
 } from '@app/common/dto/discovery';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { Inject } from '@nestjs/common';
-import { OfferingTopicsEmit } from '@app/common/microservice-client/topics';
+import { ProjectManagementTopics, UploadTopics } from '@app/common/microservice-client/topics';
+import { CreateProjectDto } from '@app/common/dto/project-management';
+import { SetReleaseDto } from '@app/common/dto/upload';
+import { lastValueFrom } from 'rxjs';
+import { ProjectType } from '@app/common/database/entities';
 
 @Injectable()
 export class PendingVersionService {
@@ -20,8 +23,10 @@ export class PendingVersionService {
   constructor(
     @InjectRepository(PendingVersionEntity) 
     private readonly pendingVersionRepo: Repository<PendingVersionEntity>,
-    @Inject(MicroserviceName.OFFERING_SERVICE) 
-    private readonly offeringClient: MicroserviceClient,
+    @Inject(MicroserviceName.PROJECT_MANAGEMENT_SERVICE) 
+    private readonly projectManagementClient: MicroserviceClient,
+    @Inject(MicroserviceName.UPLOAD_SERVICE) 
+    private readonly uploadClient: MicroserviceClient,
   ) {}
 
   /**
@@ -126,6 +131,10 @@ export class PendingVersionService {
   async acceptPendingVersion(dto: AcceptPendingVersionDto): Promise<void> {
     this.logger.log(`Accepting pending version: ${dto.projectName}@${dto.version}`);
 
+    if (!dto.username) {
+      throw new Error('Username is required to accept a pending version');
+    }
+
     const pendingVersion = await this.pendingVersionRepo.findOne({
       where: { projectName: dto.projectName, version: dto.version }
     });
@@ -138,27 +147,62 @@ export class PendingVersionService {
       throw new Error(`Pending version already processed with status: ${pendingVersion.status}`);
     }
 
-    // Update status to accepted
-    pendingVersion.status = PendingVersionStatus.ACCEPTED;
-    pendingVersion.reason = dto.reason;
-    await this.pendingVersionRepo.save(pendingVersion);
-
-    // Emit event to offering service to create project/version
-    const createEvent: CreateProjectVersionDto = {
-      projectName: dto.projectName,
-      version: dto.version,
-      isDraft: dto.isDraft ?? true,
-      reason: dto.reason
-    };
-
     try {
-      this.offeringClient.emit(OfferingTopicsEmit.CREATE_PENDING_PROJECT_VERSION, createEvent);
-      this.logger.log(`Emitted event to create project/version: ${dto.projectName}@${dto.version}`);
-    } catch (error) {
-      this.logger.error(`Error emitting create event: ${error.message}`, error.stack);
-      // Revert status on error
-      pendingVersion.status = PendingVersionStatus.PENDING;
+      // First, check if project exists, if not create it
+      try {
+        await lastValueFrom(
+          this.projectManagementClient.send(
+            ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER, 
+            dto.projectName
+          )
+        );
+        this.logger.log(`Project ${dto.projectName} already exists`);
+      } catch (error) {
+        // Project doesn't exist, create it
+        this.logger.log(`Project ${dto.projectName} not found, creating it`);
+        const createProjectDto: CreateProjectDto = {
+          name: dto.projectName,
+          projectName: dto.projectName,
+          description: `Auto-created from pending version: ${dto.reason || 'Unknown device reported this project'}`,
+          platforms: [],
+          projectType: ProjectType.PRODUCT,
+          username: dto.username
+        };
+        
+        await lastValueFrom(
+          this.projectManagementClient.send(ProjectManagementTopics.CREATE_PROJECT, createProjectDto)
+        );
+        this.logger.log(`Created project: ${dto.projectName}`);
+      }
+
+      // Now create the release/version
+      const setReleaseDto: Partial<SetReleaseDto> & { projectIdentifier: string; version: string } = {
+        projectIdentifier: dto.projectName,
+        version: dto.version,
+        name: `v${dto.version}`,
+        releaseNotes: dto.reason || 'Auto-created from pending version reported by devices',
+        metadata: {
+          autoCreated: true,
+          fromPendingVersion: true,
+          reportedBy: pendingVersion.reportingDeviceIds,
+          createdAt: new Date().toISOString()
+        },
+        isDraft: dto.isDraft ?? true,
+        dependencies: []
+      };
+
+      await lastValueFrom(
+        this.uploadClient.send(UploadTopics.SET_RELEASE, setReleaseDto)
+      );
+      this.logger.log(`Created release: ${dto.projectName}@${dto.version}`);
+
+      // Update status to accepted
+      pendingVersion.status = PendingVersionStatus.ACCEPTED;
+      pendingVersion.reason = dto.reason;
       await this.pendingVersionRepo.save(pendingVersion);
+      
+    } catch (error) {
+      this.logger.error(`Error creating project/version: ${error.message}`, error.stack);
       throw error;
     }
   }

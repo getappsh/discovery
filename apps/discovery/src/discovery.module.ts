@@ -43,6 +43,11 @@ import { PendingVersionService } from './pending-version/pending-version.service
       type: MicroserviceType.UPLOAD,
       id: "discovery"
     }),
+    MicroserviceModule.register({
+      name: MicroserviceName.PROJECT_MANAGEMENT_SERVICE,
+      type: MicroserviceType.PROJECT_MANAGEMENT,
+      id: "discovery"
+    }),
     DatabaseModule,
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,

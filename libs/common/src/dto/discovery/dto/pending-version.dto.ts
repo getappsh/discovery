@@ -85,6 +85,11 @@ export class AcceptPendingVersionDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @ApiProperty({ required: false, description: 'Username of the user accepting the version. Populated from auth token.' })
+  @IsOptional()
+  @IsString()
+  username?: string;
 }
 
 export class RejectPendingVersionDto {
@@ -101,19 +106,5 @@ export class RejectPendingVersionDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  reason?: string;
-}
-
-export class CreateProjectVersionDto {
-  @ApiProperty()
-  projectName: string;
-
-  @ApiProperty()
-  version: string;
-
-  @ApiProperty()
-  isDraft: boolean;
-
-  @ApiProperty({ required: false })
   reason?: string;
 }

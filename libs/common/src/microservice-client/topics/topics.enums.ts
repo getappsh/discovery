@@ -74,7 +74,6 @@ export const OfferingTopicsEmit = {
     OFFERING_PUSH: `getapp-offering.push${region}`,
     DEVICE_SOFTWARE_EVENT: `getapp-offering.device.software-event${region}`,
     DEVICE_MAP_EVENT: `getapp-offering.device.map-event${region}`,
-    CREATE_PENDING_PROJECT_VERSION: `getapp-offering.create-pending-project-version${region}`,
 }
 export const DeployTopics = {
     CHECK_HEALTH: `getapp-deploy.check-health${region}`
