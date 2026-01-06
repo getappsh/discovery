@@ -12,6 +12,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { AppError } from '@app/common/dto/error';
+import { PendingVersionService } from '../pending-version/pending-version.service';
 
 @Injectable()
 export class DiscoveryService {
@@ -27,6 +28,7 @@ export class DiscoveryService {
     private readonly deviceService: DeviceService,
     private readonly deviceRepoService: DeviceRepoService,
     private readonly dataSource: DataSource,
+    private readonly pendingVersionService: PendingVersionService,
   ) {
   }
 
@@ -262,6 +264,40 @@ export class DiscoveryService {
 
     const normalizedComps = comps.map(normalizeId);
     const uninstalledCatalogIds = new Set(uninstalledComps.map(u => u.release.catalogId));
+
+    // Detect and record unknown versions (not found in releases)
+    const unknownVersions = compsCatalogId.filter(catalogId => {
+      // Skip if catalogId starts with 0 (scenario 1 - agent hasn't synced yet)
+      if (catalogId.startsWith('0.')) {
+        return false;
+      }
+      
+      // Check if this version exists in our database
+      const isKnown = comps.includes(catalogId) || normalizedComps.includes(normalizeId(catalogId));
+      return !isKnown;
+    });
+
+    // Record unknown versions for later review
+    if (unknownVersions.length > 0) {
+      this.logger.warn(`Found ${unknownVersions.length} unknown version(s) from device ${deviceId}: ${unknownVersions.join(', ')}`);
+      
+      for (const catalogId of unknownVersions) {
+        const [namePart, version] = catalogId.split("@");
+        const projectName = namePart.split('.').pop() || namePart;
+        
+        if (version && projectName) {
+          // Record this unknown version asynchronously (don't block the discovery flow)
+          this.pendingVersionService.recordPendingVersion(
+            projectName,
+            version,
+            deviceId,
+            catalogId
+          ).catch(err => {
+            this.logger.error(`Failed to record pending version ${catalogId}: ${err.message}`);
+          });
+        }
+      }
+    }
 
     compsState
       .filter(cs => comps.includes(cs.catalogId) || normalizedComps.includes(normalizeId(cs.catalogId)))

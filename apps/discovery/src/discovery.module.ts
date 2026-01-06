@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
-import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity } from '@app/common/database/entities';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity, PendingVersionEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -25,6 +25,8 @@ import { HierarchyController } from './hierarchy/hierarchy.controller';
 import { HierarchyService } from './hierarchy/hierarchy.service';
 import { PROJECT_ACCESS_SERVICE } from '@app/common/utils/project-access';
 import { JwtModule } from '@nestjs/jwt';
+import { PendingVersionController } from './pending-version/pending-version.controller';
+import { PendingVersionService } from './pending-version/pending-version.service';
 
 @Module({
   imports: [
@@ -45,7 +47,8 @@ import { JwtModule } from '@nestjs/jwt';
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
        OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
-        DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity
+        DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity,
+        PendingVersionEntity
       ]),
     DeviceClientRepoModule,
     MailModule,
@@ -53,8 +56,8 @@ import { JwtModule } from '@nestjs/jwt';
       useClass: UploadJwtConfigService
     }),
   ],
-  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController],
-  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService,
+  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, PendingVersionController],
+  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, PendingVersionService,
     {
       provide: PROJECT_ACCESS_SERVICE,
       useExisting: HierarchyService
