@@ -66,7 +66,7 @@ export class PendingVersionService {
             await lastValueFrom(
               this.projectManagementClient.send(
                 ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER, 
-                projectName
+                { projectIdentifier: projectName }
               )
             );
             // Project exists, keep status as ACCEPTED
@@ -166,6 +166,9 @@ export class PendingVersionService {
       throw new Error(`Pending version already processed with status: ${pendingVersion.status}`);
     }
 
+    // Set user context in CLS for guards to accept the request
+    this.cls.set('user', { email: dto.username, preferred_username: dto.username });
+
     try {
       // First, check if project exists, if not create it
       let project: any;
@@ -173,7 +176,7 @@ export class PendingVersionService {
         project = await lastValueFrom(
           this.projectManagementClient.send(
             ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER, 
-            dto.projectName
+            { projectIdentifier: dto.projectName }
           )
         );
         this.logger.log(`Project ${dto.projectName} already exists with ID: ${project.id}`);
@@ -211,9 +214,6 @@ export class PendingVersionService {
         isDraft: dto.isDraft ?? true,
         dependencies: []
       };
-
-      // Set user context in CLS for the upload service guard to accept the request
-      this.cls.set('user', { email: dto.username, preferred_username: dto.username });
 
       await lastValueFrom(
         this.uploadClient.send(UploadTopics.SET_RELEASE, setReleaseDto)
