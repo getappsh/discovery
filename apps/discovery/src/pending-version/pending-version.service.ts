@@ -60,6 +60,23 @@ export class PendingVersionService {
           pendingVersion.catalogId = catalogId;
         }
 
+        // If status is ACCEPTED, check if the project still exists
+        if (pendingVersion.status === PendingVersionStatus.ACCEPTED) {
+          try {
+            await lastValueFrom(
+              this.projectManagementClient.send(
+                ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER, 
+                projectName
+              )
+            );
+            // Project exists, keep status as ACCEPTED
+          } catch (error) {
+            // Project not found (likely deleted), reset status to PENDING
+            this.logger.warn(`Project ${projectName} was accepted but no longer exists. Resetting to PENDING.`);
+            pendingVersion.status = PendingVersionStatus.PENDING;
+          }
+        }
+
         await this.pendingVersionRepo.save(pendingVersion);
         this.logger.log(`Updated pending version: ${projectName}@${version}, total reports: ${pendingVersion.reportedCount}`);
       } else {
