@@ -152,6 +152,137 @@ export class PendingVersionService {
   }
 
   /**
+   * Ensure project exists, create if necessary
+   */
+  private async ensureProjectExists(projectName: string, username: string, reason?: string): Promise<any> {
+    try {
+      const project = await lastValueFrom(
+        this.projectManagementClient.send(
+          ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER, 
+          { projectIdentifier: projectName }
+        )
+      );
+      this.logger.log(`Project ${projectName} already exists with ID: ${project.id}`);
+      return project;
+    } catch (error) {
+      // Project doesn't exist, create it
+      this.logger.log(`Project ${projectName} not found, creating it`);
+      const createProjectDto: CreateProjectDto = {
+        name: projectName,
+        projectName: projectName,
+        description: `Auto-created from pending version: ${reason || 'Unknown device reported this project'}`,
+        platforms: [],
+        projectType: ProjectType.PRODUCT,
+        username: username
+      };
+      
+      const project = await lastValueFrom(
+        this.projectManagementClient.send(ProjectManagementTopics.CREATE_PROJECT, createProjectDto)
+      );
+      this.logger.log(`Created project: ${projectName} with ID: ${project.id}`);
+      return project;
+    }
+  }
+
+  /**
+   * Create release/version for the pending version
+   */
+  private async createReleaseForPendingVersion(
+    project: any,
+    version: string,
+    reportingDeviceIds: string[],
+    reason?: string,
+    isDraft?: boolean
+  ): Promise<ReleaseEntity> {
+    const setReleaseDto: Partial<SetReleaseDto> & { projectId: number; version: string } = {
+      projectId: project.id,
+      projectIdentifier: project.projectName,
+      version: version,
+      name: `v${version}`,
+      releaseNotes: reason || 'Auto-created from pending version reported by devices',
+      metadata: {
+        autoCreated: true,
+        fromPendingVersion: true,
+        reportedBy: reportingDeviceIds,
+        createdAt: new Date().toISOString()
+      },
+      isDraft: isDraft ?? true,
+      dependencies: []
+    };
+
+    await lastValueFrom(
+      this.uploadClient.send(UploadTopics.SET_RELEASE, setReleaseDto)
+    );
+    this.logger.log(`Created release: ${project.projectName}@${version}`);
+
+    // Wait a moment for the release to be fully created in the database
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Fetch the created release to get its catalogId
+    const release = await this.releaseRepo.findOne({
+      where: {
+        project: { id: project.id },
+        version: version
+      },
+      relations: ['project']
+    });
+
+    if (!release) {
+      this.logger.error(`Release ${project.projectName}@${version} was created but not found in database`);
+      throw new Error('Release created but not found in database');
+    }
+
+    this.logger.log(`Found release with catalogId: ${release.catalogId}`);
+    return release;
+  }
+
+  /**
+   * Create device_component entries for all devices that reported this version
+   */
+  private async createDeviceComponentsForVersion(
+    deviceIds: string[],
+    release: ReleaseEntity
+  ): Promise<void> {
+    this.logger.log(`Creating device_component entries for ${deviceIds.length} devices`);
+
+    for (const deviceId of deviceIds) {
+      // Check if device exists
+      const device = await this.deviceRepo.findOne({ where: { ID: deviceId } });
+      
+      if (!device) {
+        this.logger.warn(`Device ${deviceId} not found, skipping device_component creation`);
+        continue;
+      }
+
+      // Check if device_component entry already exists
+      const existingComponent = await this.deviceComponentRepo.findOne({
+        where: {
+          device: { ID: deviceId },
+          release: { catalogId: release.catalogId }
+        }
+      });
+
+      if (existingComponent) {
+        this.logger.debug(`device_component entry already exists for device ${deviceId} and release ${release.catalogId}`);
+        continue;
+      }
+
+      // Create new device_component entry
+      const deviceComponent = this.deviceComponentRepo.create({
+        device: device,
+        release: release,
+        state: DeviceComponentStateEnum.INSTALLED, // Device reported it, so it's installed
+        deployedAt: new Date()
+      });
+
+      await this.deviceComponentRepo.save(deviceComponent);
+      this.logger.log(`Created device_component entry for device ${deviceId} and release ${release.catalogId}`);
+    }
+
+    this.logger.log(`Successfully created ${deviceIds.length} device_component entries`);
+  }
+
+  /**
    * Accept a pending version and create the project/version via Kafka
    */
   async acceptPendingVersion(dto: AcceptPendingVersionDto): Promise<void> {
@@ -177,114 +308,23 @@ export class PendingVersionService {
     this.cls.set('user', { email: dto.username, preferred_username: dto.username });
 
     try {
-      // First, check if project exists, if not create it
-      let project: any;
-      try {
-        project = await lastValueFrom(
-          this.projectManagementClient.send(
-            ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER, 
-            { projectIdentifier: dto.projectName }
-          )
-        );
-        this.logger.log(`Project ${dto.projectName} already exists with ID: ${project.id}`);
-      } catch (error) {
-        // Project doesn't exist, create it
-        this.logger.log(`Project ${dto.projectName} not found, creating it`);
-        const createProjectDto: CreateProjectDto = {
-          name: dto.projectName,
-          projectName: dto.projectName,
-          description: `Auto-created from pending version: ${dto.reason || 'Unknown device reported this project'}`,
-          platforms: [],
-          projectType: ProjectType.PRODUCT,
-          username: dto.username
-        };
-        
-        project = await lastValueFrom(
-          this.projectManagementClient.send(ProjectManagementTopics.CREATE_PROJECT, createProjectDto)
-        );
-        this.logger.log(`Created project: ${dto.projectName} with ID: ${project.id}`);
-      }
+      // 1. Ensure project exists (create if necessary)
+      const project = await this.ensureProjectExists(dto.projectName, dto.username, dto.reason);
 
-      // Now create the release/version using the projectId
-      const setReleaseDto: Partial<SetReleaseDto> & { projectId: number; version: string } = {
-        projectId: project.id,
-        projectIdentifier: dto.projectName,
-        version: dto.version,
-        name: `v${dto.version}`,
-        releaseNotes: dto.reason || 'Auto-created from pending version reported by devices',
-        metadata: {
-          autoCreated: true,
-          fromPendingVersion: true,
-          reportedBy: pendingVersion.reportingDeviceIds,
-          createdAt: new Date().toISOString()
-        },
-        isDraft: dto.isDraft ?? true,
-        dependencies: []
-      };
-
-      await lastValueFrom(
-        this.uploadClient.send(UploadTopics.SET_RELEASE, setReleaseDto)
+      // 2. Create the release/version
+      const release = await this.createReleaseForPendingVersion(
+        project,
+        dto.version,
+        pendingVersion.reportingDeviceIds,
+        dto.reason,
+        dto.isDraft
       );
-      this.logger.log(`Created release: ${dto.projectName}@${dto.version}`);
 
-      // Wait a moment for the release to be fully created in the database
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Fetch the created release to get its catalogId
-      const release = await this.releaseRepo.findOne({
-        where: {
-          project: { id: project.id },
-          version: dto.version
-        },
-        relations: ['project']
-      });
-
-      if (!release) {
-        this.logger.error(`Release ${dto.projectName}@${dto.version} was created but not found in database`);
-        throw new Error('Release created but not found in database');
-      }
-
-      this.logger.log(`Found release with catalogId: ${release.catalogId}`);
-
-      // Create device_component entries for all devices that reported this version
-      const deviceIds = pendingVersion.reportingDeviceIds;
-      this.logger.log(`Creating device_component entries for ${deviceIds.length} devices`);
-
-      for (const deviceId of deviceIds) {
-        // Check if device exists
-        const device = await this.deviceRepo.findOne({ where: { ID: deviceId } });
-        
-        if (!device) {
-          this.logger.warn(`Device ${deviceId} not found, skipping device_component creation`);
-          continue;
-        }
-
-        // Check if device_component entry already exists
-        const existingComponent = await this.deviceComponentRepo.findOne({
-          where: {
-            device: { ID: deviceId },
-            release: { catalogId: release.catalogId }
-          }
-        });
-
-        if (existingComponent) {
-          this.logger.debug(`device_component entry already exists for device ${deviceId} and release ${release.catalogId}`);
-          continue;
-        }
-
-        // Create new device_component entry
-        const deviceComponent = this.deviceComponentRepo.create({
-          device: device,
-          release: release,
-          state: DeviceComponentStateEnum.INSTALLED, // Device reported it, so it's installed
-          deployedAt: new Date()
-        });
-
-        await this.deviceComponentRepo.save(deviceComponent);
-        this.logger.log(`Created device_component entry for device ${deviceId} and release ${release.catalogId}`);
-      }
-
-      this.logger.log(`Successfully created ${deviceIds.length} device_component entries`);
+      // 3. Create device_component entries for reporting devices
+      await this.createDeviceComponentsForVersion(
+        pendingVersion.reportingDeviceIds,
+        release
+      );
 
       // Update status to accepted
       pendingVersion.status = PendingVersionStatus.ACCEPTED;
