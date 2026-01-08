@@ -2,7 +2,7 @@ import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-
 import { BadRequestException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity, OrgGroupEntity, OrgUIDEntity, ReleaseEntity, ReleaseStatusEnum, UploadVersionEntity } from '@app/common/database/entities';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity, OrgGroupEntity, OrgUIDEntity, ReleaseEntity, ReleaseStatusEnum, UploadVersionEntity, ProjectType } from '@app/common/database/entities';
 import { DeviceRegisterDto, DeviceContentResDto, DeviceMapDto, DevicesStatisticInfo, DeviceMapStateDto } from '@app/common/dto/device';
 import { MapDto } from '@app/common/dto/map';
 import { MapDevicesDto } from '@app/common/dto/map/dto/all-maps.dto';
@@ -10,13 +10,14 @@ import { DeviceDto } from '@app/common/dto/device/dto/device.dto';
 import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-device-updates-dto';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
-import { DeviceSoftwareDto, DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
-import { ReleaseChangedEventDto } from '@app/common/dto/upload';
+import { DeviceSoftwareDto, DeviceComponentStateDto, SoftwareStateDto } from '@app/common/dto/device/dto/device-software.dto';
+import { ReleaseChangedEventDto, ComponentV2Dto } from '@app/common/dto/upload';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { OfferingTopicsEmit } from '@app/common/microservice-client/topics';
 import { Deprecated } from '@app/common/decorators';
 import { AppError, ErrorCode } from '@app/common/dto/error';
 import { GroupService } from '../group/group.service';
+import { PendingVersionService } from '../pending-version/pending-version.service';
 
 @Injectable()
 export class DeviceService {
@@ -33,7 +34,8 @@ export class DeviceService {
     @InjectRepository(DeviceComponentEntity) private readonly deviceCompRepo: Repository<DeviceComponentEntity>,
     @Inject(MicroserviceName.OFFERING_SERVICE) private readonly offeringClient: MicroserviceClient,
     private deviceRepoS: DeviceRepoService,
-    private groupService: GroupService
+    private groupService: GroupService,
+    private pendingVersionService: PendingVersionService,
   ) { }
 
   async getRegisteredDevices(groups?: string[]): Promise<DeviceDto[]> {
@@ -398,7 +400,46 @@ export class DeviceService {
     }
     let deviceDto = (await this.deviceToDevicesDto([device]))[0] || {} as DeviceDto;
 
-    return DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
+    const deviceSoftware = DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
+
+    // Fetch pending versions for this device
+    try {
+      const pendingVersions = await this.pendingVersionService.getPendingVersionsForDevice(deviceId);
+      
+      if (pendingVersions && pendingVersions.length > 0) {
+        this.logger.debug(`Found ${pendingVersions.length} pending versions for device ${deviceId}`);
+        
+        // Add pending versions to the softwares array with isUnknown flag
+        for (const pendingVersion of pendingVersions) {
+          const unknownSoftware = new SoftwareStateDto();
+          
+          // Create a ComponentV2Dto for the unknown version
+          const component = new ComponentV2Dto();
+          component.id = pendingVersion.catalogId || `${pendingVersion.projectName}@${pendingVersion.version}`;
+          component.version = pendingVersion.version;
+          component.projectName = pendingVersion.projectName;
+          component.status = ReleaseStatusEnum.DRAFT; // Unknown versions treated as draft
+          component.type = ProjectType.PRODUCT; // Default to product type
+          component.createdAt = pendingVersion.firstReportedDate;
+          component.updatedAt = pendingVersion.lastReportedDate;
+          component.releaseNotes = `Version reported by device but not registered in getapp`;
+          component.metadata = pendingVersion.metadata || {};
+          component.latest = false;
+          
+          unknownSoftware.software = component;
+          unknownSoftware.state = DeviceComponentStateEnum.INSTALLED; // Assume installed since device reported it
+          unknownSoftware.isUnknown = true; // Mark as unknown
+          unknownSoftware.offering = [];
+          
+          deviceSoftware.softwares.push(unknownSoftware);
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`Error fetching pending versions for device ${deviceId}: ${error.message}`);
+      // Continue without pending versions if there's an error
+    }
+
+    return deviceSoftware;
   }
 
 

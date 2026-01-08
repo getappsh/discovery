@@ -270,4 +270,19 @@ export class PendingVersionService {
     });
     return count > 0;
   }
+
+  /**
+   * Get all pending versions for a specific device
+   */
+  async getPendingVersionsForDevice(deviceId: string): Promise<PendingVersionEntity[]> {
+    this.logger.log(`Getting pending versions for device ${deviceId}`);
+    
+    const pendingVersions = await this.pendingVersionRepo
+      .createQueryBuilder('pv')
+      .where('pv.reportingDeviceIds @> :deviceIds', { deviceIds: JSON.stringify([deviceId]) })
+      .andWhere('pv.status = :status', { status: PendingVersionStatus.PENDING })
+      .getMany();
+
+    return pendingVersions;
+  }
 }
