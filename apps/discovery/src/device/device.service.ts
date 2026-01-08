@@ -402,24 +402,27 @@ export class DeviceService {
 
     const deviceSoftware = DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
 
-    // Fetch pending versions for this device
+    await this.addPendingVersionsToDeviceSoftware(deviceId, deviceSoftware);
+
+    return deviceSoftware;
+  }
+
+  private async addPendingVersionsToDeviceSoftware(deviceId: string, deviceSoftware: DeviceSoftwareDto): Promise<void> {
     try {
       const pendingVersions = await this.pendingVersionService.getPendingVersionsForDevice(deviceId);
       
       if (pendingVersions && pendingVersions.length > 0) {
         this.logger.debug(`Found ${pendingVersions.length} pending versions for device ${deviceId}`);
         
-        // Add pending versions to the softwares array with isUnknown flag
         for (const pendingVersion of pendingVersions) {
           const unknownSoftware = new SoftwareStateDto();
           
-          // Create a ComponentV2Dto for the unknown version
           const component = new ComponentV2Dto();
           component.id = pendingVersion.catalogId || `${pendingVersion.projectName}@${pendingVersion.version}`;
           component.version = pendingVersion.version;
           component.projectName = pendingVersion.projectName;
-          component.status = ReleaseStatusEnum.DRAFT; // Unknown versions treated as draft
-          component.type = ProjectType.PRODUCT; // Default to product type
+          component.status = ReleaseStatusEnum.DRAFT;
+          component.type = ProjectType.PRODUCT;
           component.createdAt = pendingVersion.firstReportedDate;
           component.updatedAt = pendingVersion.lastReportedDate;
           component.releaseNotes = `Version reported by device but not registered in getapp`;
@@ -427,8 +430,8 @@ export class DeviceService {
           component.latest = false;
           
           unknownSoftware.software = component;
-          unknownSoftware.state = DeviceComponentStateEnum.INSTALLED; // Assume installed since device reported it
-          unknownSoftware.isUnknown = true; // Mark as unknown
+          unknownSoftware.state = DeviceComponentStateEnum.INSTALLED;
+          unknownSoftware.isUnknown = true;
           unknownSoftware.offering = [];
           
           deviceSoftware.softwares.push(unknownSoftware);
@@ -436,10 +439,7 @@ export class DeviceService {
       }
     } catch (error) {
       this.logger.warn(`Error fetching pending versions for device ${deviceId}: ${error.message}`);
-      // Continue without pending versions if there's an error
     }
-
-    return deviceSoftware;
   }
 
 
