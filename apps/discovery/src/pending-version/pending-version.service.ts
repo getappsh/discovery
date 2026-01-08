@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PendingVersionEntity, PendingVersionStatus } from '@app/common/database/entities/pending-version.entity';
+import { DeviceEntity, DeviceComponentEntity, ReleaseEntity, DeviceComponentStateEnum } from '@app/common/database/entities';
 import { 
   AcceptPendingVersionDto, 
   PendingVersionDto, 
@@ -24,6 +25,12 @@ export class PendingVersionService {
   constructor(
     @InjectRepository(PendingVersionEntity) 
     private readonly pendingVersionRepo: Repository<PendingVersionEntity>,
+    @InjectRepository(DeviceEntity)
+    private readonly deviceRepo: Repository<DeviceEntity>,
+    @InjectRepository(DeviceComponentEntity)
+    private readonly deviceComponentRepo: Repository<DeviceComponentEntity>,
+    @InjectRepository(ReleaseEntity)
+    private readonly releaseRepo: Repository<ReleaseEntity>,
     @Inject(MicroserviceName.PROJECT_MANAGEMENT_SERVICE) 
     private readonly projectManagementClient: MicroserviceClient,
     @Inject(MicroserviceName.UPLOAD_SERVICE) 
@@ -219,6 +226,65 @@ export class PendingVersionService {
         this.uploadClient.send(UploadTopics.SET_RELEASE, setReleaseDto)
       );
       this.logger.log(`Created release: ${dto.projectName}@${dto.version}`);
+
+      // Wait a moment for the release to be fully created in the database
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Fetch the created release to get its catalogId
+      const release = await this.releaseRepo.findOne({
+        where: {
+          project: { id: project.id },
+          version: dto.version
+        },
+        relations: ['project']
+      });
+
+      if (!release) {
+        this.logger.error(`Release ${dto.projectName}@${dto.version} was created but not found in database`);
+        throw new Error('Release created but not found in database');
+      }
+
+      this.logger.log(`Found release with catalogId: ${release.catalogId}`);
+
+      // Create device_component entries for all devices that reported this version
+      const deviceIds = pendingVersion.reportingDeviceIds;
+      this.logger.log(`Creating device_component entries for ${deviceIds.length} devices`);
+
+      for (const deviceId of deviceIds) {
+        // Check if device exists
+        const device = await this.deviceRepo.findOne({ where: { ID: deviceId } });
+        
+        if (!device) {
+          this.logger.warn(`Device ${deviceId} not found, skipping device_component creation`);
+          continue;
+        }
+
+        // Check if device_component entry already exists
+        const existingComponent = await this.deviceComponentRepo.findOne({
+          where: {
+            device: { ID: deviceId },
+            release: { catalogId: release.catalogId }
+          }
+        });
+
+        if (existingComponent) {
+          this.logger.debug(`device_component entry already exists for device ${deviceId} and release ${release.catalogId}`);
+          continue;
+        }
+
+        // Create new device_component entry
+        const deviceComponent = this.deviceComponentRepo.create({
+          device: device,
+          release: release,
+          state: DeviceComponentStateEnum.INSTALLED, // Device reported it, so it's installed
+          deployedAt: new Date()
+        });
+
+        await this.deviceComponentRepo.save(deviceComponent);
+        this.logger.log(`Created device_component entry for device ${deviceId} and release ${release.catalogId}`);
+      }
+
+      this.logger.log(`Successfully created ${deviceIds.length} device_component entries`);
 
       // Update status to accepted
       pendingVersion.status = PendingVersionStatus.ACCEPTED;
