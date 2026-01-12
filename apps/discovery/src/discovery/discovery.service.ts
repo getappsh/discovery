@@ -129,7 +129,7 @@ export class DiscoveryService {
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.formations = dto?.softwareData?.formations;
 
-    device.platform = dto.platform ? await this.getPlatformByToken(dto.platform.token) : null;
+    device.platform = dto.platform ? (await this.getPlatformByToken(dto.platform.token)) ?? undefined : undefined;
     device.deviceType = [];
                       
     // Only device there is no of type platform, can be a device children
