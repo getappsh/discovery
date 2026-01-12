@@ -11,8 +11,9 @@ export class RuleValidationService {
     @InjectRepository(RuleFieldEntity)
     private readonly ruleFieldRepository: Repository<RuleFieldEntity>,
   ) {
-    // Dynamically import @usex/rule-engine as ES module
-    this.ruleEnginePromise = import('@usex/rule-engine').then(module => module.RuleEngine);
+    // Dynamically import @usex/rule-engine as ES module using the ESM entry point
+    // Use eval to prevent webpack from converting import() to require()
+    this.ruleEnginePromise = (0, eval)("import('@usex/rule-engine/dist/esm/index.js')").then(module => module.RuleEngine);
   }
 
   /**

@@ -47,4 +47,13 @@ export class DevicePutDto {
 
     return device
   }
+
+  static fromDeviceDiscovery(dto: any) {
+    const device = new DevicePutDto()
+    device.deviceId = dto.general?.physicalDevice?.serialNumber || dto.deviceId
+    device.name = dto.general?.personalDevice?.name
+    device.orgUID = dto.general?.physicalDevice?.orgUID || null
+    device.groupId = null
+    return device
+  }
 }
