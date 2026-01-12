@@ -50,7 +50,6 @@ export class SoftwareStateDto {
   }
   
 }
-
 export class DeviceSoftwareDto extends DeviceDto {
 
   @ApiProperty({ isArray: true, type: SoftwareStateDto })

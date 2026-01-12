@@ -30,6 +30,9 @@ export const UploadTopics = {
     //update file metadata
     UPDATE_FILE_METADATA: `getapp-upload.update-file-metadata${region}`,
 
+    // Rules - Policies
+    GET_POLICIES: `getapp-upload.get-policies${region}`,
+
 } as const
 
 export const UploadTopicsEmit = {
@@ -187,6 +190,10 @@ export const DeviceTopics = {
     // Config
     GET_DEVICE_CONFIG: `getapp-device.config.get${region}`,
     SET_DEVICE_CONFIG: `getapp-device.config.set${region}`,
+    
+    // Rules - Restrictions
+    GET_RESTRICTIONS: `getapp-device.get-restrictions${region}`,
+    
     CHECK_HEALTH: `getapp-device.check-health${region}`
 } as const
 

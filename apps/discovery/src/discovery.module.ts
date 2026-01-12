@@ -1,4 +1,5 @@
 import { DatabaseModule, UploadJwtConfigService } from '@app/common';
+import { RuleModule } from '@app/common/rules';
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -26,6 +27,8 @@ import { HierarchyController } from './hierarchy/hierarchy.controller';
 import { HierarchyService } from './hierarchy/hierarchy.service';
 import { PROJECT_ACCESS_SERVICE } from '@app/common/utils/project-access';
 import { JwtModule } from '@nestjs/jwt';
+import { RestrictionService } from './restriction.service';
+import { RestrictionController } from './restriction.controller';
 
 @Module({
   imports: [
@@ -43,6 +46,7 @@ import { JwtModule } from '@nestjs/jwt';
       id: "discovery"
     }),
     DatabaseModule,
+    RuleModule,
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
       OrgGroupEntity, OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
@@ -55,8 +59,8 @@ import { JwtModule } from '@nestjs/jwt';
       useClass: UploadJwtConfigService
     }),
   ],
-  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController],
-  providers: [ DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService,
+  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, RestrictionController],
+  providers: [ DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, RestrictionService,
     {
       provide: PROJECT_ACCESS_SERVICE,
       useExisting: HierarchyService
