@@ -4,6 +4,10 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { RuleType } from '../enums/rule.enums';
 
 export class RuleQueryDto {
+  @ApiPropertyOptional({ description: 'Project identifier (ID or name)' })
+  @IsOptional()
+  projectIdentifier?: string | number;
+
   @ApiPropertyOptional({ enum: RuleType, description: 'Filter by rule type' })
   @IsOptional()
   @IsEnum(RuleType)
