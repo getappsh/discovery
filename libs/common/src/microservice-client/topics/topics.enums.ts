@@ -193,6 +193,13 @@ export const DeviceTopics = {
     
     // Rules - Restrictions
     GET_RESTRICTIONS: `getapp-device.get-restrictions${region}`,
+    CREATE_RESTRICTION: `getapp-device.create-restriction${region}`,
+    GET_RESTRICTION: `getapp-device.get-restriction${region}`,
+    UPDATE_RESTRICTION: `getapp-device.update-restriction${region}`,
+    DELETE_RESTRICTION: `getapp-device.delete-restriction${region}`,
+    GET_RULE_FIELDS: `getapp-device.get-rule-fields${region}`,
+    ADD_RULE_FIELD: `getapp-device.add-rule-field${region}`,
+    REMOVE_RULE_FIELD: `getapp-device.remove-rule-field${region}`,
     
     CHECK_HEALTH: `getapp-device.check-health${region}`
 } as const

@@ -10,7 +10,6 @@ export interface RuleAssociation {
   releases?: ReleaseIdentifier[];
   
   // For restrictions (managed by discovery service)
-  deviceTypeIds?: number[];
   deviceTypeNames?: string[];
   osTypes?: string[];
   deviceIds?: string[];

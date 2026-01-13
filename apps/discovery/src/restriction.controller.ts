@@ -13,6 +13,16 @@ export class RestrictionController {
   constructor(private readonly restrictionService: RestrictionService) {}
 
   /**
+   * Create a new restriction
+   */
+  @MessagePattern(DeviceTopics.CREATE_RESTRICTION)
+  async createRestriction(@RpcPayload() createRestrictionDto: CreateRestrictionDto) {
+    this.logger.log('Creating restriction');
+    return this.restrictionService.createRestriction(createRestrictionDto);
+  }
+
+
+  /**
    * Get all restrictions
    */
   @ValidateProjectAnyAccess()
@@ -22,21 +32,12 @@ export class RestrictionController {
     return this.restrictionService.listRestrictions(query || {});
   }
 
-  /**
-   * Create a new restriction
-   */
-  @ValidateProjectAnyAccess()
-  @MessagePattern('getapp-device.create-restriction')
-  async createRestriction(@RpcPayload() createRestrictionDto: CreateRestrictionDto) {
-    this.logger.log('Creating restriction');
-    return this.restrictionService.createRestriction(createRestrictionDto);
-  }
 
   /**
    * Get a specific restriction by ID
    */
   @ValidateProjectAnyAccess()
-  @MessagePattern('getapp-device.get-restriction')
+  @MessagePattern(DeviceTopics.GET_RESTRICTION)
   async getRestriction(@RpcPayload() id: string) {
     this.logger.log(`Getting restriction ${id}`);
     return this.restrictionService.getRestriction(id);
@@ -46,7 +47,7 @@ export class RestrictionController {
    * Update a restriction
    */
   @ValidateProjectAnyAccess()
-  @MessagePattern('getapp-device.update-restriction')
+  @MessagePattern(DeviceTopics.UPDATE_RESTRICTION)
   async updateRestriction(@RpcPayload() payload: { id: string; data: UpdateRuleDto }) {
     this.logger.log(`Updating restriction ${payload.id}`);
     return this.restrictionService.updateRestriction(payload.id, payload.data);
@@ -56,7 +57,7 @@ export class RestrictionController {
    * Delete a restriction
    */
   @ValidateProjectAnyAccess()
-  @MessagePattern('getapp-device.delete-restriction')
+  @MessagePattern(DeviceTopics.DELETE_RESTRICTION)
   async deleteRestriction(@RpcPayload() id: string) {
     this.logger.log(`Deleting restriction ${id}`);
     return this.restrictionService.deleteRestriction(id);
@@ -65,7 +66,7 @@ export class RestrictionController {
   /**
    * Get available rule fields
    */
-  @MessagePattern('getapp-device.get-rule-fields')
+  @MessagePattern(DeviceTopics.GET_RULE_FIELDS)
   async getAvailableFields() {
     this.logger.log('Getting available rule fields');
     return this.restrictionService.getAvailableFields();
@@ -74,7 +75,7 @@ export class RestrictionController {
   /**
    * Add a new rule field
    */
-  @MessagePattern('getapp-device.add-rule-field')
+  @MessagePattern(DeviceTopics.ADD_RULE_FIELD)
   async addRuleField(@RpcPayload() fieldData: CreateRuleFieldDto) {
     this.logger.log('Adding rule field');
     return this.restrictionService.addRuleField(fieldData);
@@ -83,7 +84,7 @@ export class RestrictionController {
   /**
    * Remove a rule field
    */
-  @MessagePattern('getapp-device.remove-rule-field')
+  @MessagePattern(DeviceTopics.REMOVE_RULE_FIELD)
   async removeRuleField(@RpcPayload() fieldName: string) {
     this.logger.log(`Removing rule field ${fieldName}`);
     return this.restrictionService.removeRuleField(fieldName);

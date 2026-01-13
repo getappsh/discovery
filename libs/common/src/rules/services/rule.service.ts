@@ -50,7 +50,7 @@ export class RuleService {
       }
     } else if (createRuleDto.type === RuleType.RESTRICTION) {
       const hasAssociation = 
-        (createRuleDto.association.deviceTypeIds && createRuleDto.association.deviceTypeIds.length > 0) ||
+        (createRuleDto.association.deviceTypeNames && createRuleDto.association.deviceTypeNames.length > 0) ||
         (createRuleDto.association.deviceIds && createRuleDto.association.deviceIds.length > 0) ||
         (createRuleDto.association.osTypes && createRuleDto.association.osTypes.length > 0);
       
@@ -204,7 +204,6 @@ export class RuleService {
           projectName: ra.release?.project?.name,
           version: ra.release?.version,
         })) || [],
-        deviceTypeIds: rule.deviceTypeAssociations?.map(dta => dta.deviceType?.id) || [],
         deviceTypeNames: rule.deviceTypeAssociations?.map(dta => dta.deviceType?.name) || [],
         deviceIds: rule.deviceAssociations?.map(da => da.device?.ID) || [],
         osTypes: rule.osAssociations?.map(oa => oa.osType) || [],
@@ -237,12 +236,12 @@ export class RuleService {
     }
 
     // Device type associations (for restrictions)
-    if (association.deviceTypeIds && association.deviceTypeIds.length > 0) {
+    if (association.deviceTypeNames && association.deviceTypeNames.length > 0) {
       const deviceTypes = await this.deviceTypeRepository.find({
-        where: { id: In(association.deviceTypeIds) },
+        where: { name: In(association.deviceTypeNames) },
       });
 
-      if (deviceTypes.length !== association.deviceTypeIds.length) {
+      if (deviceTypes.length !== association.deviceTypeNames.length) {
         throw new BadRequestException('One or more device types not found');
       }
 

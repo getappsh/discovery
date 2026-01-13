@@ -24,11 +24,6 @@ export class PolicyAssociationDto {
 }
 
 export class RestrictionAssociationDto {
-  @ApiPropertyOptional({ type: [Number], description: 'Device type IDs for restrictions' })
-  @IsOptional()
-  @IsNotEmpty({ each: true })
-  deviceTypeIds?: number[];
-
   @ApiPropertyOptional({ type: [String], description: 'Device type names for restrictions' })
   @IsOptional()
   @IsString({ each: true })
@@ -107,11 +102,6 @@ export class RuleAssociationDto {
   @ValidateNested({ each: true })
   @Type(() => ReleaseIdentifierDto)
   releases?: ReleaseIdentifierDto[];
-
-  @ApiPropertyOptional({ type: [Number], description: 'Device type IDs for restrictions' })
-  @IsOptional()
-  @IsNotEmpty({ each: true })
-  deviceTypeIds?: number[];
 
   @ApiPropertyOptional({ type: [String], description: 'Device type names for restrictions' })
   @IsOptional()
