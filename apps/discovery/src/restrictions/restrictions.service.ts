@@ -4,7 +4,7 @@ import { CreateRestrictionDto, UpdateRuleDto, RuleQueryDto, CreateRuleFieldDto }
 import { RuleType } from '@app/common/rules/enums/rule.enums';
 
 @Injectable()
-export class RestrictionService {
+export class RestrictionsService {
   constructor(
     private readonly ruleService: RuleService,
     private readonly ruleValidationService: RuleValidationService,

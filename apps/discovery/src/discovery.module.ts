@@ -27,8 +27,8 @@ import { HierarchyController } from './hierarchy/hierarchy.controller';
 import { HierarchyService } from './hierarchy/hierarchy.service';
 import { PROJECT_ACCESS_SERVICE } from '@app/common/utils/project-access';
 import { JwtModule } from '@nestjs/jwt';
-import { RestrictionService } from './restriction.service';
-import { RestrictionController } from './restriction.controller';
+import { RestrictionsController } from './restrictions/restrictions.controller';
+import { RestrictionsService } from './restrictions/restrictions.service';
 
 @Module({
   imports: [
@@ -59,12 +59,12 @@ import { RestrictionController } from './restriction.controller';
       useClass: UploadJwtConfigService
     }),
   ],
-  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, RestrictionController],
-  providers: [ DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, RestrictionService,
+  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, RestrictionsController],
+  providers: [ DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, RestrictionsService,
     {
       provide: PROJECT_ACCESS_SERVICE,
       useExisting: HierarchyService
     }
-  ],
+    ],
 })
 export class DiscoveryModule { }

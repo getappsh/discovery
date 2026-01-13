@@ -3,14 +3,14 @@ import { MessagePattern } from '@nestjs/microservices';
 import { DeviceTopics } from '@app/common/microservice-client/topics';
 import { RpcPayload } from '@app/common/microservice-client';
 import { CreateRestrictionDto, UpdateRuleDto, RuleQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
-import { RestrictionService } from './restriction.service';
+import { RestrictionsService } from './restrictions.service';
 import { ValidateProjectAnyAccess } from '@app/common/utils/project-access';
 
 @Controller()
-export class RestrictionController {
-  private readonly logger = new Logger(RestrictionController.name);
+export class RestrictionsController {
+  private readonly logger = new Logger(RestrictionsController.name);
 
-  constructor(private readonly restrictionService: RestrictionService) {}
+  constructor(private readonly restrictionsService: RestrictionsService) {}
 
   /**
    * Create a new restriction
@@ -18,7 +18,7 @@ export class RestrictionController {
   @MessagePattern(DeviceTopics.CREATE_RESTRICTION)
   async createRestriction(@RpcPayload() createRestrictionDto: CreateRestrictionDto) {
     this.logger.log('Creating restriction');
-    return this.restrictionService.createRestriction(createRestrictionDto);
+    return this.restrictionsService.createRestriction(createRestrictionDto);
   }
 
 
@@ -29,7 +29,7 @@ export class RestrictionController {
   @MessagePattern(DeviceTopics.GET_RESTRICTIONS)
   async getRestrictions(@RpcPayload() query: RuleQueryDto) {
     this.logger.log('Getting restrictions');
-    return this.restrictionService.listRestrictions(query || {});
+    return this.restrictionsService.listRestrictions(query || {});
   }
 
 
@@ -40,7 +40,7 @@ export class RestrictionController {
   @MessagePattern(DeviceTopics.GET_RESTRICTION)
   async getRestriction(@RpcPayload() id: string) {
     this.logger.log(`Getting restriction ${id}`);
-    return this.restrictionService.getRestriction(id);
+    return this.restrictionsService.getRestriction(id);
   }
 
   /**
@@ -50,7 +50,7 @@ export class RestrictionController {
   @MessagePattern(DeviceTopics.UPDATE_RESTRICTION)
   async updateRestriction(@RpcPayload() payload: { id: string; data: UpdateRuleDto }) {
     this.logger.log(`Updating restriction ${payload.id}`);
-    return this.restrictionService.updateRestriction(payload.id, payload.data);
+    return this.restrictionsService.updateRestriction(payload.id, payload.data);
   }
 
   /**
@@ -60,7 +60,7 @@ export class RestrictionController {
   @MessagePattern(DeviceTopics.DELETE_RESTRICTION)
   async deleteRestriction(@RpcPayload() id: string) {
     this.logger.log(`Deleting restriction ${id}`);
-    return this.restrictionService.deleteRestriction(id);
+    return this.restrictionsService.deleteRestriction(id);
   }
 
   /**
@@ -69,7 +69,7 @@ export class RestrictionController {
   @MessagePattern(DeviceTopics.GET_RULE_FIELDS)
   async getAvailableFields() {
     this.logger.log('Getting available rule fields');
-    return this.restrictionService.getAvailableFields();
+    return this.restrictionsService.getAvailableFields();
   }
 
   /**
@@ -78,7 +78,7 @@ export class RestrictionController {
   @MessagePattern(DeviceTopics.ADD_RULE_FIELD)
   async addRuleField(@RpcPayload() fieldData: CreateRuleFieldDto) {
     this.logger.log('Adding rule field');
-    return this.restrictionService.addRuleField(fieldData);
+    return this.restrictionsService.addRuleField(fieldData);
   }
 
   /**
@@ -87,6 +87,6 @@ export class RestrictionController {
   @MessagePattern(DeviceTopics.REMOVE_RULE_FIELD)
   async removeRuleField(@RpcPayload() fieldName: string) {
     this.logger.log(`Removing rule field ${fieldName}`);
-    return this.restrictionService.removeRuleField(fieldName);
+    return this.restrictionsService.removeRuleField(fieldName);
   }
 }
