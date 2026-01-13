@@ -1,9 +1,13 @@
 import { RuleType } from '../enums/rule.enums';
 
+export interface ReleaseIdentifier {
+  projectName: string;
+  version: string;
+}
+
 export interface RuleAssociation {
   // For policies (managed by upload service)
-  releaseIds?: number[];
-  releaseNames?: string[];
+  releases?: ReleaseIdentifier[];
   
   // For restrictions (managed by discovery service)
   deviceTypeIds?: number[];

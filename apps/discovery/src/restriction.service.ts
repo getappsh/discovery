@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { RuleService, RuleValidationService } from '@app/common/rules/services';
-import { CreateRuleDto, UpdateRuleDto, RuleQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
+import { CreateRestrictionDto, UpdateRuleDto, RuleQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
 import { RuleType } from '@app/common/rules/enums/rule.enums';
 
 @Injectable()
@@ -13,9 +13,12 @@ export class RestrictionService {
   /**
    * Creates a new restriction (device/os-associated rule)
    */
-  async createRestriction(createRuleDto: CreateRuleDto) {
-    // Ensure it's a restriction type
-    createRuleDto.type = RuleType.RESTRICTION;
+  async createRestriction(createRestrictionDto: CreateRestrictionDto) {
+    // Convert to internal CreateRuleDto format
+    const createRuleDto = {
+      ...createRestrictionDto,
+      type: RuleType.RESTRICTION,
+    };
     
     const rule = await this.ruleService.createRule(createRuleDto);
     return this.ruleService.ruleEntityToDefinition(rule);

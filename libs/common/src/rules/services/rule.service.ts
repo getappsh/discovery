@@ -9,7 +9,7 @@ import { RuleOsEntity } from '../../database/entities/rule-os.entity';
 import { ReleaseEntity } from '../../database/entities/release.entity';
 import { DeviceTypeEntity } from '../../database/entities/device-type.entity';
 import { DeviceEntity } from '../../database/entities/device.entity';
-import { CreateRuleDto, UpdateRuleDto, RuleQueryDto } from '../dto';
+import { CreateRuleDto, CreatePolicyDto, CreateRestrictionDto, UpdateRuleDto, RuleQueryDto } from '../dto';
 import { RuleValidationService } from './rule-validation.service';
 import { RuleType } from '../enums/rule.enums';
 import { RuleDefinition } from '../types/rule.types';
@@ -45,7 +45,7 @@ export class RuleService {
 
     // Validate associations based on rule type
     if (createRuleDto.type === RuleType.POLICY) {
-      if (!createRuleDto.association.releaseIds || createRuleDto.association.releaseIds.length === 0) {
+      if (!createRuleDto.association.releases || createRuleDto.association.releases.length === 0) {
         throw new BadRequestException('Policies must be associated with at least one release');
       }
     } else if (createRuleDto.type === RuleType.RESTRICTION) {
@@ -200,10 +200,10 @@ export class RuleService {
       createdAt: rule.createdAt.toISOString(),
       updatedAt: rule.updatedAt.toISOString(),
       association: {
-        releaseIds: rule.releaseAssociations?.map(ra => parseInt(ra.release?.catalogId)) || [],
-        releaseNames: rule.releaseAssociations?.map(ra => 
-          `${ra.release?.project?.name}.${ra.release?.name}@v${ra.release?.version}`
-        ) || [],
+        releases: rule.releaseAssociations?.map(ra => ({
+          projectName: ra.release?.project?.name,
+          version: ra.release?.version,
+        })) || [],
         deviceTypeIds: rule.deviceTypeAssociations?.map(dta => dta.deviceType?.id) || [],
         deviceTypeNames: rule.deviceTypeAssociations?.map(dta => dta.deviceType?.name) || [],
         deviceIds: rule.deviceAssociations?.map(da => da.device?.ID) || [],
@@ -217,12 +217,16 @@ export class RuleService {
    */
   private async createAssociations(rule: RuleEntity, association: any): Promise<void> {
     // Release associations (for policies)
-    if (association.releaseIds && association.releaseIds.length > 0) {
+    if (association.releases && association.releases.length > 0) {
       const releases = await this.releaseRepository.find({
-        where: { catalogId: In(association.releaseIds.map(String)) },
+        where: association.releases.map(r => ({
+          project: { name: r.projectName },
+          version: r.version,
+        })),
+        relations: ['project'],
       });
 
-      if (releases.length !== association.releaseIds.length) {
+      if (releases.length !== association.releases.length) {
         throw new BadRequestException('One or more releases not found');
       }
 

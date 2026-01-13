@@ -2,7 +2,7 @@ import { Controller, Logger } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { DeviceTopics } from '@app/common/microservice-client/topics';
 import { RpcPayload } from '@app/common/microservice-client';
-import { CreateRuleDto, UpdateRuleDto, RuleQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
+import { CreateRestrictionDto, UpdateRuleDto, RuleQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
 import { RestrictionService } from './restriction.service';
 import { ValidateProjectAnyAccess } from '@app/common/utils/project-access';
 
@@ -27,9 +27,9 @@ export class RestrictionController {
    */
   @ValidateProjectAnyAccess()
   @MessagePattern('getapp-device.create-restriction')
-  async createRestriction(@RpcPayload() createRuleDto: CreateRuleDto) {
+  async createRestriction(@RpcPayload() createRestrictionDto: CreateRestrictionDto) {
     this.logger.log('Creating restriction');
-    return this.restrictionService.createRestriction(createRuleDto);
+    return this.restrictionService.createRestriction(createRestrictionDto);
   }
 
   /**
