@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { RuleService, RuleValidationService } from '@app/common/rules/services';
-import { CreateRestrictionDto, UpdateRuleDto, RuleQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
+import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
 import { RuleType } from '@app/common/rules/enums/rule.enums';
 
 @Injectable()
@@ -50,7 +50,7 @@ export class RestrictionsService {
   /**
    * Lists all restrictions with optional filters
    */
-  async listRestrictions(query: RuleQueryDto) {
+  async listRestrictions(query: RestrictionQueryDto) {
     // Force type to be restriction
     query.type = RuleType.RESTRICTION;
     

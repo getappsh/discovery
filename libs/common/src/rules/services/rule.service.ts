@@ -9,7 +9,7 @@ import { RuleOsEntity } from '../../database/entities/rule-os.entity';
 import { ReleaseEntity } from '../../database/entities/release.entity';
 import { DeviceTypeEntity } from '../../database/entities/device-type.entity';
 import { DeviceEntity } from '../../database/entities/device.entity';
-import { CreateRuleDto, CreatePolicyDto, CreateRestrictionDto, UpdateRuleDto, RuleQueryDto } from '../dto';
+import { CreateRuleDto, CreatePolicyDto, CreateRestrictionDto, UpdateRuleDto, RuleQueryDto, RestrictionQueryDto } from '../dto';
 import { RuleValidationService } from './rule-validation.service';
 import { RuleType } from '../enums/rule.enums';
 import { RuleDefinition } from '../types/rule.types';
@@ -144,7 +144,7 @@ export class RuleService {
   /**
    * Finds all rules with optional filters
    */
-  async findAll(query: RuleQueryDto): Promise<RuleEntity[]> {
+  async findAll(query: RuleQueryDto | RestrictionQueryDto): Promise<RuleEntity[]> {
     const queryBuilder = this.ruleRepository
       .createQueryBuilder('rule')
       .leftJoinAndSelect('rule.releaseAssociations', 'releaseAssoc')
@@ -164,12 +164,19 @@ export class RuleService {
       queryBuilder.andWhere('rule.isActive = :isActive', { isActive: query.isActive });
     }
 
-    if (query.releaseId) {
+    // Handle releaseId for policies (RuleQueryDto only)
+    if ('releaseId' in query && query.releaseId) {
       queryBuilder.andWhere('release.catalogId = :releaseId', { releaseId: query.releaseId });
     }
 
-    if (query.deviceTypeId) {
+    // Handle deviceTypeId for backward compatibility (RuleQueryDto)
+    if ('deviceTypeId' in query && query.deviceTypeId) {
       queryBuilder.andWhere('deviceType.id = :deviceTypeId', { deviceTypeId: query.deviceTypeId });
+    }
+
+    // Handle deviceTypeName for restrictions (RestrictionQueryDto)
+    if ('deviceTypeName' in query && query.deviceTypeName) {
+      queryBuilder.andWhere('deviceType.name = :deviceTypeName', { deviceTypeName: query.deviceTypeName });
     }
 
     if (query.deviceId) {
