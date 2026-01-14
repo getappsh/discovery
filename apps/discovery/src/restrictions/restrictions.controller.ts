@@ -25,7 +25,6 @@ export class RestrictionsController {
   /**
    * Get all restrictions
    */
-  @ValidateProjectAnyAccess()
   @MessagePattern(DeviceTopics.GET_RESTRICTIONS)
   async getRestrictions(@RpcPayload() query: RestrictionQueryDto) {
     this.logger.log('Getting restrictions');
@@ -36,7 +35,6 @@ export class RestrictionsController {
   /**
    * Get a specific restriction by ID
    */
-  @ValidateProjectAnyAccess()
   @MessagePattern(DeviceTopics.GET_RESTRICTION)
   async getRestriction(@RpcPayload() id: string) {
     this.logger.log(`Getting restriction ${id}`);
