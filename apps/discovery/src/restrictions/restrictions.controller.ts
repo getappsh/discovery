@@ -44,7 +44,6 @@ export class RestrictionsController {
   /**
    * Update a restriction
    */
-  @ValidateProjectAnyAccess()
   @MessagePattern(DeviceTopics.UPDATE_RESTRICTION)
   async updateRestriction(@RpcPayload() payload: { id: string; data: UpdateRuleDto }) {
     this.logger.log(`Updating restriction ${payload.id}`);
@@ -54,7 +53,6 @@ export class RestrictionsController {
   /**
    * Delete a restriction
    */
-  @ValidateProjectAnyAccess()
   @MessagePattern(DeviceTopics.DELETE_RESTRICTION)
   async deleteRestriction(@RpcPayload() id: string) {
     this.logger.log(`Deleting restriction ${id}`);
