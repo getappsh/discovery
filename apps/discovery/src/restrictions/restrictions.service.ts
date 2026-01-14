@@ -36,7 +36,8 @@ export class RestrictionsService {
    * Deletes a restriction
    */
   async deleteRestriction(id: string) {
-    return this.ruleService.deleteRule(id);
+    await this.ruleService.deleteRule(id);
+    return { success: true, message: 'Restriction deleted successfully' };
   }
 
   /**
