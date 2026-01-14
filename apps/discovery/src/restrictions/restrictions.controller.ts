@@ -65,6 +65,7 @@ export class RestrictionsController {
 
   /**
    * Get available rule fields
+   * This endpoint is used by multiple microservices (upload, api) via Kafka
    */
   @MessagePattern(DeviceTopics.GET_RULE_FIELDS)
   async getAvailableFields() {
@@ -74,6 +75,7 @@ export class RestrictionsController {
 
   /**
    * Add a new rule field
+   * This endpoint is used by multiple microservices (upload, api) via Kafka
    */
   @MessagePattern(DeviceTopics.ADD_RULE_FIELD)
   async addRuleField(@RpcPayload() fieldData: CreateRuleFieldDto) {
@@ -83,6 +85,7 @@ export class RestrictionsController {
 
   /**
    * Remove a rule field
+   * This endpoint is used by multiple microservices (upload, api) via Kafka
    */
   @MessagePattern(DeviceTopics.REMOVE_RULE_FIELD)
   async removeRuleField(@RpcPayload() fieldName: string) {
