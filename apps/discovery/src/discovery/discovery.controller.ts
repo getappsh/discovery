@@ -21,9 +21,9 @@ export class DiscoveryController {
     this.discoveryService.discoveryMessage(data)
   }
 
-  @EventPattern(DeviceTopicsEmit.DISCOVER_DEVICE_CONTEXT_V2)
-  discoverDeviceContextV2(@RpcPayload() dto: DiscoveryMessageV2Dto) {
-    this.discoveryService.discoveryDeviceContext(dto);
+  @MessagePattern(DeviceTopics.DISCOVER_DEVICE_CONTEXT_V2)
+  async discoverDeviceContextV2(@RpcPayload() dto: DiscoveryMessageV2Dto): Promise<DiscoveryMessageV2Dto> {
+    return this.discoveryService.discoveryDeviceContext(dto);
   }
 
   @EventPattern(DeviceTopicsEmit.IM_PUSH_DISCOVERY)
