@@ -11,6 +11,7 @@ import { ComponentV2Dto } from '@app/common/dto/upload';
 import { Injectable, Logger } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
+import { PendingVersionService } from '../pending-version/pending-version.service';
 import { AppError, ErrorCode } from '@app/common/dto/error';
 
 @Injectable()
@@ -27,6 +28,7 @@ export class DiscoveryService {
     private readonly deviceService: DeviceService,
     private readonly deviceRepoService: DeviceRepoService,
     private readonly dataSource: DataSource,
+    private readonly pendingVersionService: PendingVersionService,
   ) {
   }
 
@@ -315,6 +317,48 @@ export class DiscoveryService {
 
     const normalizedComps = comps.map(normalizeId);
     const uninstalledCatalogIds = new Set(uninstalledComps.map(u => u.release.catalogId));
+
+    // Detect and record unknown versions (not found in releases)
+    const unknownVersions = compsState.filter(compState => {
+      const catalogId = compState.catalogId;
+      
+      // Parse the catalogId (format: "namespace.projectName@version" or "projectName@version")
+      const [namePart, version] = catalogId.split("@");
+      
+      // Skip if the identifier part starts with 0 AND it's in OFFERING or PUSH state
+      // (scenario 1 - agent hasn't synced the project identifier yet, will be resolved by agent)
+      // But if it's INSTALLED/DEPLOYED/etc, the 0 might be the real identifier
+      if (namePart && namePart.startsWith('0') && 
+          (compState.state === DeviceComponentStateEnum.OFFERING || 
+           compState.state === DeviceComponentStateEnum.PUSH)) {
+        return false;
+      }
+      
+      // Check if this version exists in our database
+      const isKnown = comps.includes(catalogId) || normalizedComps.includes(normalizeId(catalogId));
+      return !isKnown;
+    });
+
+    // Record unknown versions for later review
+    if (unknownVersions.length > 0) {
+      this.logger.warn(`Found ${unknownVersions.length} unknown version(s) from device ${deviceId}: ${unknownVersions.map(v => v.catalogId).join(', ')}`);
+      
+      for (const compState of unknownVersions) {
+        const catalogId = compState.catalogId;
+        const [namePart, version] = catalogId.split("@");
+        const projectName = namePart?.split('.').pop() || namePart;
+        
+        // Always record, even if version or projectName are missing - we want to know about malformed IDs too
+        this.pendingVersionService.recordPendingVersion(
+          projectName || 'unknown',
+          version || 'unknown',
+          deviceId,
+          catalogId
+        ).catch(err => {
+          this.logger.error(`Failed to record pending version ${catalogId}: ${err.message}`);
+        });
+      }
+    }
 
     compsState
       .filter(cs => comps.includes(cs.catalogId) || normalizedComps.includes(normalizeId(cs.catalogId)))

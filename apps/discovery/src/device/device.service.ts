@@ -11,12 +11,13 @@ import { InventoryDeviceUpdatesDto } from '@app/common/dto/map/dto/inventory-dev
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { DeviceSoftwareDto, DeviceComponentStateDto, SoftwareStateDto } from '@app/common/dto/device/dto/device-software.dto';
-import { ReleaseChangedEventDto } from '@app/common/dto/upload';
+import { ReleaseChangedEventDto, ComponentV2Dto } from '@app/common/dto/upload';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { OfferingTopics, OfferingTopicsEmit } from '@app/common/microservice-client/topics';
 import { Deprecated } from '@app/common/decorators';
 import { AppError, ErrorCode } from '@app/common/dto/error';
 import { GroupService } from '../group/group.service';
+import { PendingVersionService } from '../pending-version/pending-version.service';
 import { DeviceTypeOfferingDto } from '@app/common/dto/offering/dto/offering.dto';
 import { lastValueFrom } from 'rxjs';
 import { HierarchyService } from '../hierarchy/hierarchy.service';
@@ -41,6 +42,7 @@ export class DeviceService {
     @Inject(MicroserviceName.OFFERING_SERVICE) private readonly offeringClient: MicroserviceClient,
     private deviceRepoS: DeviceRepoService,
     private groupService: GroupService,
+    private pendingVersionService: PendingVersionService,
     private hierarchyService: HierarchyService,
   ) { }
 
@@ -490,8 +492,10 @@ export class DeviceService {
 
     let deviceDto = (await this.deviceToDevicesDto([device]))[0] || {} as DeviceDto;
 
-
     const res = DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
+
+    // Add pending versions
+    await this.addPendingVersionsToDeviceSoftware(deviceId, res);
 
     // Await the offerByDeviceType only before return (if needed)
     const offerByDeviceType = await offerByDeviceTypePromise;
@@ -510,6 +514,31 @@ export class DeviceService {
 
     res.softwares = [...res.softwares, ...additionalSoftwares];
     return res;
+  }
+
+  private async addPendingVersionsToDeviceSoftware(deviceId: string, deviceSoftware: DeviceSoftwareDto): Promise<void> {
+    try {
+      const pendingVersions = await this.pendingVersionService.getPendingVersionsForDevice(deviceId);
+      
+      if (pendingVersions && pendingVersions.length > 0) {
+        this.logger.debug(`Found ${pendingVersions.length} pending versions for device ${deviceId}`);
+        
+        for (const pendingVersion of pendingVersions) {
+          const unknownSoftware = new SoftwareStateDto();
+          
+          const component = ComponentV2Dto.fromPendingVersion(pendingVersion);
+          
+          unknownSoftware.software = component;
+          unknownSoftware.state = DeviceComponentStateEnum.INSTALLED;
+          unknownSoftware.isUnknown = true;
+          unknownSoftware.offering = [];
+          
+          deviceSoftware.softwares.push(unknownSoftware);
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`Error fetching pending versions for device ${deviceId}: ${error.message}`);
+    }
   }
 
 
