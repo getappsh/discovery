@@ -91,6 +91,12 @@ export class ReleaseDto {
   @ApiProperty({ required: false })
   releasedAt?: Date
 
+  @ApiProperty({ required: false })
+  createdBy?: string
+
+  @ApiProperty({ required: false })
+  updatedBy?: string
+
   static fromEntity(release: ReleaseEntity): ReleaseDto {
     const dto = new ReleaseDto();
     dto.version = release.version;
@@ -107,6 +113,8 @@ export class ReleaseDto {
     dto.compliantRegulationsCount = release.compliantRegulationsCount;
     dto.latest = release.latest;
     dto.releasedAt = release.releasedAt ?? undefined;
+    dto.createdBy = release.createdBy ?? undefined;
+    dto.updatedBy = release.updatedBy ?? undefined;
 
     return dto;
   }
@@ -193,6 +201,21 @@ export class ComponentV2Dto {
       ?.filter(a => a.isInstallationFile)
       ?.map(a => a?.fileUpload?.size ?? 0)
       ?.reduce((size, a) => size + a, 0);
+    return dto;
+  }
+
+  static fromPendingVersion(pendingVersion: any): ComponentV2Dto {
+    const dto = new ComponentV2Dto();
+    dto.id = pendingVersion.catalogId || `${pendingVersion.projectName}@${pendingVersion.version}`;
+    dto.version = pendingVersion.version;
+    dto.projectName = pendingVersion.projectName;
+    dto.status = ReleaseStatusEnum.DRAFT;
+    dto.type = ProjectType.PRODUCT;
+    dto.createdAt = pendingVersion.firstReportedDate;
+    dto.updatedAt = pendingVersion.lastReportedDate;
+    dto.releaseNotes = `Version reported by device but not registered in getapp`;
+    dto.metadata = pendingVersion.metadata || {};
+    dto.latest = false;
     return dto;
   }
 

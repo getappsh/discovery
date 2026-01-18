@@ -7,7 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
 import { DiscoveryService as DiscoveryServiceMain } from './discovery.service';
-import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity, DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity } from '@app/common/database/entities';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity, PendingVersionEntity , DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -29,6 +29,8 @@ import { PROJECT_ACCESS_SERVICE } from '@app/common/utils/project-access';
 import { JwtModule } from '@nestjs/jwt';
 import { RestrictionsController } from './restrictions/restrictions.controller';
 import { RestrictionsService } from './restrictions/restrictions.service';
+import { PendingVersionController } from './pending-version/pending-version.controller';
+import { PendingVersionService } from './pending-version/pending-version.service';
 
 @Module({
   imports: [
@@ -45,22 +47,27 @@ import { RestrictionsService } from './restrictions/restrictions.service';
       type: MicroserviceType.UPLOAD,
       id: "discovery"
     }),
+    MicroserviceModule.register({
+      name: MicroserviceName.PROJECT_MANAGEMENT_SERVICE,
+      type: MicroserviceType.PROJECT_MANAGEMENT,
+      id: "discovery"
+    }),
     DatabaseModule,
     RuleModule,
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
-      OrgGroupEntity, OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
-      DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity,
-      DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity
-    ]),
+       OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
+        DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity,
+        PendingVersionEntity, DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity
+      ]),
     DeviceClientRepoModule,
     MailModule,
     JwtModule.registerAsync({
       useClass: UploadJwtConfigService
     }),
   ],
-  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, RestrictionsController],
-  providers: [ DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, RestrictionsService,
+  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, RestrictionsController, PendingVersionController],
+  providers: [DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, RestrictionsService, PendingVersionService,
     {
       provide: PROJECT_ACCESS_SERVICE,
       useExisting: HierarchyService

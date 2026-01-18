@@ -202,7 +202,9 @@ export const DeviceTopics = {
     REMOVE_RULE_FIELD: `getapp-device.remove-rule-field${region}`,
     
     DISCOVER_DEVICE_CONTEXT_V2: `getapp-device.discover.device-context-V2${region}`,
-    CHECK_HEALTH: `getapp-device.check-health${region}`
+    CHECK_HEALTH: `getapp-device.check-health${region}`,
+    // Pending Versions
+    LIST_PENDING_VERSIONS: `getapp-device.pending-versions.list${region}`,
 } as const
 
 export const DeviceTopicsEmit = {
@@ -215,6 +217,9 @@ export const DeviceTopicsEmit = {
     UPDATE_TLS_STATUS: `getapp-device.update.tls.status${region}`,
     IM_PUSH_DISCOVERY: `getapp-device.im.push.discovery${region}`,
     RELEASE_CHANGED_EVENT: `getapp-device.release-changed-event${region}`,
+    // Pending Versions
+    ACCEPT_PENDING_VERSION: `getapp-device.pending-versions.accept${region}`,
+    REJECT_PENDING_VERSION: `getapp-device.pending-versions.reject${region}`,
 } as const
 
 
