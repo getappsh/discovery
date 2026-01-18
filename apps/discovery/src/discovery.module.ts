@@ -5,7 +5,8 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
-import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity, PendingVersionEntity } from '@app/common/database/entities';
+import { DiscoveryService as DiscoveryServiceMain } from './discovery.service';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity, PendingVersionEntity , DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -30,8 +31,8 @@ import { PendingVersionService } from './pending-version/pending-version.service
 
 @Module({
   imports: [
-    ConfigModule.forRoot({isGlobal: true}),
-    LoggerModule.forRoot({httpCls: false, jsonLogger: process.env.LOGGER_FORMAT === 'JSON', name: "Discovery"}),
+    ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule.forRoot({ httpCls: false, jsonLogger: process.env.LOGGER_FORMAT === 'JSON', name: "Discovery" }),
     ApmModule,
     MicroserviceModule.register({
       name: MicroserviceName.OFFERING_SERVICE,
@@ -53,7 +54,7 @@ import { PendingVersionService } from './pending-version/pending-version.service
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
        OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
         DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity,
-        PendingVersionEntity
+        PendingVersionEntity, DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity
       ]),
     DeviceClientRepoModule,
     MailModule,
@@ -62,11 +63,11 @@ import { PendingVersionService } from './pending-version/pending-version.service
     }),
   ],
   controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, PendingVersionController],
-  providers: [DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, PendingVersionService,
+  providers: [DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, PendingVersionService,
     {
       provide: PROJECT_ACCESS_SERVICE,
       useExisting: HierarchyService
     }
   ],
 })
-export class DiscoveryModule {}
+export class DiscoveryModule { }

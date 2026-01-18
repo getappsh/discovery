@@ -2,7 +2,7 @@ import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-
 import { BadRequestException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity, OrgGroupEntity, OrgUIDEntity, ReleaseEntity, ReleaseStatusEnum, UploadVersionEntity, ProjectType } from '@app/common/database/entities';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceMapStateEntity, DeviceMapStateEnum, MapEntity, OrgGroupEntity, OrgUIDEntity, ReleaseEntity, ReleaseStatusEnum, UploadVersionEntity, DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity } from '@app/common/database/entities';
 import { DeviceRegisterDto, DeviceContentResDto, DeviceMapDto, DevicesStatisticInfo, DeviceMapStateDto } from '@app/common/dto/device';
 import { MapDto } from '@app/common/dto/map';
 import { MapDevicesDto } from '@app/common/dto/map/dto/all-maps.dto';
@@ -13,11 +13,14 @@ import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { DeviceSoftwareDto, DeviceComponentStateDto, SoftwareStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { ReleaseChangedEventDto, ComponentV2Dto } from '@app/common/dto/upload';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
-import { OfferingTopicsEmit } from '@app/common/microservice-client/topics';
+import { OfferingTopics, OfferingTopicsEmit } from '@app/common/microservice-client/topics';
 import { Deprecated } from '@app/common/decorators';
 import { AppError, ErrorCode } from '@app/common/dto/error';
 import { GroupService } from '../group/group.service';
 import { PendingVersionService } from '../pending-version/pending-version.service';
+import { DeviceTypeOfferingDto } from '@app/common/dto/offering/dto/offering.dto';
+import { lastValueFrom } from 'rxjs';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 
 @Injectable()
 export class DeviceService {
@@ -32,10 +35,15 @@ export class DeviceService {
     @InjectRepository(MapEntity) private readonly mapRepo: Repository<MapEntity>,
     @InjectRepository(DeviceMapStateEntity) private readonly deviceMapRepo: Repository<DeviceMapStateEntity>,
     @InjectRepository(DeviceComponentEntity) private readonly deviceCompRepo: Repository<DeviceComponentEntity>,
+    @InjectRepository(DeliveryStatusEntity) private readonly deliveryStatusRepo: Repository<DeliveryStatusEntity>,
+    @InjectRepository(DeployStatusEntity) private readonly deployStatusRepo: Repository<DeployStatusEntity>,
+    @InjectRepository(ComponentOfferingEntity) private readonly componentOfferingRepo: Repository<ComponentOfferingEntity>,
+    @InjectRepository(MapOfferingEntity) private readonly mapOfferingRepo: Repository<MapOfferingEntity>,
     @Inject(MicroserviceName.OFFERING_SERVICE) private readonly offeringClient: MicroserviceClient,
     private deviceRepoS: DeviceRepoService,
     private groupService: GroupService,
     private pendingVersionService: PendingVersionService,
+    private hierarchyService: HierarchyService,
   ) { }
 
   async getRegisteredDevices(groups?: string[]): Promise<DeviceDto[]> {
@@ -196,6 +204,80 @@ export class DeviceService {
   async putDeviceProperties(p: DevicePutDto): Promise<DevicePutDto> {
     this.logger.log(`Put props for device ${p.deviceId}`);
     return await this.deviceRepoS.setDevice(p)
+  }
+
+  async deleteDevice(deviceId: string): Promise<string> {
+    this.logger.log(`Deleting device with ID: ${deviceId}`);
+
+    // Check if device exists
+    const device = await this.deviceRepo.findOne({
+      where: { ID: deviceId },
+      relations: ['children']
+    });
+
+    if (!device) {
+      this.logger.error(`Device with ID ${deviceId} not found`);
+      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, `Device with ID ${deviceId} not found`, HttpStatus.NOT_FOUND);
+    }
+
+    // Check if device has children
+    if (device.children && device.children.length > 0) {
+      this.logger.error(`Cannot delete device ${deviceId} because it has ${device.children.length} child device(s)`);
+      throw new AppError(
+        ErrorCode.DEVICE_HAS_CHILDREN,
+        `Cannot delete device ${deviceId} because it has child devices`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    try {
+      // Delete associated entities in the correct order
+      // 1. Delete device map states
+      await this.deviceMapRepo.delete({ device: { ID: deviceId } });
+      this.logger.debug(`Deleted device map states for device ${deviceId}`);
+
+      // 2. Delete device components
+      await this.deviceCompRepo.delete({ device: { ID: deviceId } });
+      this.logger.debug(`Deleted device components for device ${deviceId}`);
+
+      // 3. Delete component offerings
+      await this.componentOfferingRepo.delete({ device: { ID: deviceId } });
+      this.logger.debug(`Deleted component offerings for device ${deviceId}`);
+
+      // 4. Delete map offerings
+      await this.mapOfferingRepo.delete({ device: { ID: deviceId } });
+      this.logger.debug(`Deleted map offerings for device ${deviceId}`);
+
+      // 5. Delete delivery status records
+      await this.deliveryStatusRepo.delete({ device: { ID: deviceId } });
+      this.logger.debug(`Deleted delivery status records for device ${deviceId}`);
+
+      // 6. Delete deploy status records
+      await this.deployStatusRepo.delete({ device: { ID: deviceId } });
+      this.logger.debug(`Deleted deploy status records for device ${deviceId}`);
+
+      // 7. Delete discovery messages (both as device and as reporting device)
+      await this.discoveryMessageRepo.delete({ device: { ID: deviceId } });
+      this.logger.debug(`Deleted discovery messages for device ${deviceId}`);
+
+      // 8. Update org UID (will be set to NULL due to onDelete: "SET NULL")
+      // This happens automatically, but we can also explicitly handle it if needed
+      await this.orgUIDRepo.update({ device: { ID: deviceId } }, { device: null });
+      this.logger.debug(`Updated org UID for device ${deviceId}`);
+
+      // 9. Finally, delete the device entity itself
+      await this.deviceRepo.remove(device);
+      this.logger.log(`Successfully deleted device ${deviceId}`);
+
+      return `Device ${deviceId} and all associated entities deleted successfully`;
+    } catch (error) {
+      this.logger.error(`Error deleting device ${deviceId}: ${error.message}`, error.stack);
+      throw new AppError(
+        ErrorCode.APP_OTHER,
+        `Failed to delete device ${deviceId}: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
 
@@ -381,13 +463,14 @@ export class DeviceService {
     this.logger.debug(`get softwares for device ${deviceId}`);
     let device = await this.deviceRepo.findOne({
       where: { ID: deviceId },
-      relations: { components: { release: { project: true } } },
+      relations: { components: { release: { project: true, artifacts: {fileUpload: true} } } },
       select: {
         components: {
           id: true, state: true, error: true, downloadedAt: true, deployedAt: true,
           release: {
             version: true, catalogId: true, releaseNotes: true, latest: true,
             status: true, createdAt: true, updatedAt: true, releasedAt: true,
+            artifacts: { id: true, isInstallationFile: true, fileUpload: { size: true } },
             project: { name: true, projectType: true, id: true }
           },
         }
@@ -396,15 +479,41 @@ export class DeviceService {
 
     if (!device) {
       this.logger.error(`device ${deviceId} not exits`)
-      throw new BadRequestException("Device not exits")
+      throw new AppError(ErrorCode.DEVICE_NOT_FOUND, "Device with ID " + deviceId + " not found", HttpStatus.BAD_REQUEST);
     }
+
+    const offerByDeviceTypePromise = Promise.all(
+      (device.deviceType ?? []).map(async dt => {
+        // TODO check why without passing the dtTree the topic deadlocks
+        const dtTree = await this.hierarchyService.getDeviceTypeHierarchy({ deviceTypeId: dt.id });        
+        return lastValueFrom(this.offeringClient.send<DeviceTypeOfferingDto>(OfferingTopics.GET_OFFERING_FOR_DEVICE_TYPE, { deviceTypeIdentifier: dt.id, deviceTypeTree: dtTree }));
+      })
+    );
+
     let deviceDto = (await this.deviceToDevicesDto([device]))[0] || {} as DeviceDto;
 
-    const deviceSoftware = DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
+    const res = DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
 
-    await this.addPendingVersionsToDeviceSoftware(deviceId, deviceSoftware);
+    // Add pending versions
+    await this.addPendingVersionsToDeviceSoftware(deviceId, res);
 
-    return deviceSoftware;
+    // Await the offerByDeviceType only before return (if needed)
+    const offerByDeviceType = await offerByDeviceTypePromise;
+    // Collect all additional software offerings from the device type offerings
+    const additionalSoftwares: SoftwareStateDto[] = offerByDeviceType
+      .flatMap(offer =>
+        (offer.projects ?? [])
+          .filter(project => project.release)
+          .map(project => {
+            const dto = new SoftwareStateDto();
+            dto.software = project.release!;
+            dto.state = DeviceComponentStateEnum.OFFERING;
+            return dto;
+          })
+      );
+
+    res.softwares = [...res.softwares, ...additionalSoftwares];
+    return res;
   }
 
   private async addPendingVersionsToDeviceSoftware(deviceId: string, deviceSoftware: DeviceSoftwareDto): Promise<void> {
@@ -560,7 +669,7 @@ export class DeviceService {
       return
     }
     this.logger.verbose(`send software installed event`);
-    await this.offeringClient.emit(OfferingTopicsEmit.DEVICE_SOFTWARE_EVENT, event);
+    this.offeringClient.emit(OfferingTopicsEmit.DEVICE_SOFTWARE_EVENT, event);
   }
 
   async sendMapInstallEvent2Offering(event: DeviceMapStateDto) {
@@ -568,7 +677,7 @@ export class DeviceService {
       return
     }
     this.logger.verbose(`Send map installed event`);
-    await this.offeringClient.emit(OfferingTopicsEmit.DEVICE_MAP_EVENT, event);
+    this.offeringClient.emit(OfferingTopicsEmit.DEVICE_MAP_EVENT, event);
   }
 
   async releaseChangedEvent(dto: ReleaseChangedEventDto) {

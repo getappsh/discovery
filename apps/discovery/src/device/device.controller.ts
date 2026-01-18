@@ -55,6 +55,12 @@ export class DeviceController {
     return this.deviceService.putDeviceProperties(p)
   }
 
+  @MessagePattern(DeviceTopics.DELETE_DEVICE)
+  deleteDevice(@RpcPayload() deviceId: string): Promise<string> {
+    this.logger.log(`Delete device: ${deviceId}`);
+    return this.deviceService.deleteDevice(deviceId);
+  }
+
   @MessagePattern(DeviceTopics.DEVICE_MAPS)
   getDeviceMaps(@RpcPayload("stringValue") deviceId: string): Promise<DeviceMapDto> {
     return this.deviceService.getDeviceMaps(deviceId)
@@ -126,7 +132,7 @@ export class DeviceController {
   private readImageVersion() {
     let version = 'unknown'
     try {
-      version = fs.readFileSync('discovery_image_version', 'utf8');
+      version = fs.readFileSync('discovery_image_version.txt', 'utf8');
     } catch (error) {
       this.logger.error(`Unable to read image version - error: ${error}`)
     }
