@@ -204,6 +204,21 @@ export class ComponentV2Dto {
     return dto;
   }
 
+  static fromPendingVersion(pendingVersion: any): ComponentV2Dto {
+    const dto = new ComponentV2Dto();
+    dto.id = pendingVersion.catalogId || `${pendingVersion.projectName}@${pendingVersion.version}`;
+    dto.version = pendingVersion.version;
+    dto.projectName = pendingVersion.projectName;
+    dto.status = ReleaseStatusEnum.DRAFT;
+    dto.type = ProjectType.PRODUCT;
+    dto.createdAt = pendingVersion.firstReportedDate;
+    dto.updatedAt = pendingVersion.lastReportedDate;
+    dto.releaseNotes = `Version reported by device but not registered in getapp`;
+    dto.metadata = pendingVersion.metadata || {};
+    dto.latest = false;
+    return dto;
+  }
+
   toString() {
     return JSON.stringify(this)
   }

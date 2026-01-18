@@ -417,17 +417,7 @@ export class DeviceService {
         for (const pendingVersion of pendingVersions) {
           const unknownSoftware = new SoftwareStateDto();
           
-          const component = new ComponentV2Dto();
-          component.id = pendingVersion.catalogId || `${pendingVersion.projectName}@${pendingVersion.version}`;
-          component.version = pendingVersion.version;
-          component.projectName = pendingVersion.projectName;
-          component.status = ReleaseStatusEnum.DRAFT;
-          component.type = ProjectType.PRODUCT;
-          component.createdAt = pendingVersion.firstReportedDate;
-          component.updatedAt = pendingVersion.lastReportedDate;
-          component.releaseNotes = `Version reported by device but not registered in getapp`;
-          component.metadata = pendingVersion.metadata || {};
-          component.latest = false;
+          const component = ComponentV2Dto.fromPendingVersion(pendingVersion);
           
           unknownSoftware.software = component;
           unknownSoftware.state = DeviceComponentStateEnum.INSTALLED;
