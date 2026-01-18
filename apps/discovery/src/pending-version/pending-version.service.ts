@@ -199,29 +199,11 @@ export class PendingVersionService {
       dependencies: []
     };
 
-    await lastValueFrom(
+    const release = await lastValueFrom(
       this.uploadClient.send(UploadTopics.SET_RELEASE, setReleaseDto)
     );
-    this.logger.log(`Created release: ${project.projectName}@${version}`);
+    this.logger.log(`Created release: ${project.projectName}@${version} with catalogId: ${release.catalogId}`);
 
-    // Wait a moment for the release to be fully created in the database
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Fetch the created release to get its catalogId
-    const release = await this.releaseRepo.findOne({
-      where: {
-        project: { id: project.id },
-        version: version
-      },
-      relations: ['project']
-    });
-
-    if (!release) {
-      this.logger.error(`Release ${project.projectName}@${version} was created but not found in database`);
-      throw new Error('Release created but not found in database');
-    }
-
-    this.logger.log(`Found release with catalogId: ${release.catalogId}`);
     return release;
   }
 
