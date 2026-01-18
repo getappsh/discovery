@@ -1,4 +1,5 @@
 import { DatabaseModule, UploadJwtConfigService } from '@app/common';
+import { RuleModule } from '@app/common/rules';
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -28,6 +29,8 @@ import { PROJECT_ACCESS_SERVICE } from '@app/common/utils/project-access';
 import { JwtModule } from '@nestjs/jwt';
 import { PendingVersionController } from './pending-version/pending-version.controller';
 import { PendingVersionService } from './pending-version/pending-version.service';
+import { RestrictionsController } from './restrictions/restrictions.controller';
+import { RestrictionsService } from './restrictions/restrictions.service';
 
 @Module({
   imports: [
@@ -50,6 +53,7 @@ import { PendingVersionService } from './pending-version/pending-version.service
       id: "discovery"
     }),
     DatabaseModule,
+    RuleModule,
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
        OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
@@ -62,12 +66,12 @@ import { PendingVersionService } from './pending-version/pending-version.service
       useClass: UploadJwtConfigService
     }),
   ],
-  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, PendingVersionController],
-  providers: [DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, PendingVersionService,
+  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, PendingVersionController, RestrictionsController],
+  providers: [DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, PendingVersionService, RestrictionsService,
     {
       provide: PROJECT_ACCESS_SERVICE,
       useExisting: HierarchyService
     }
-  ],
+    ],
 })
 export class DiscoveryModule { }

@@ -24,7 +24,7 @@ export class DeviceEntity {
 
   @ManyToOne(() => PlatformEntity, { nullable: true, eager: true, onUpdate: "CASCADE", onDelete: "SET NULL" })
   @JoinColumn({ name: "platform_id" })
-  platform?: PlatformEntity | null;
+  platform?: PlatformEntity;
 
   @ManyToMany(() => DeviceTypeEntity, { eager: true })
   @JoinTable({
