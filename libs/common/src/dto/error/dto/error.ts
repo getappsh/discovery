@@ -50,6 +50,9 @@ export enum ErrorCode {
   GROUP_ORG_ID_NOT_ALLOWED = "GROUP.orgIdNotAllowed",
   GROUP_ORG_ID_CONFLICT = "GROUP.orgIdConflict",
   GROUP_ORG_ID_NOT_FOUND = "GROUP.orgIdNotFound",
+
+  // releases
+  RELEASE_HAS_DEPENDENTS = "RELEASE.hasDependents",
 }
 
 export class ErrorDto {
@@ -96,7 +99,9 @@ export class ErrorDto {
       "`GROUP.orgIdUnknown`: Organization ID is unknown, see message for cause.<br/>" +
       "`GROUP.orgIdNotAllowed`: Organization ID is not allowed to be used, see message for cause.<br/>" +
       "`GROUP.orgIdConflict`: Organization ID conflict occurred.<br/>" +
-      "`GROUP.orgIdNotFound`: Organization ID not found.",
+      "`GROUP.orgIdNotFound`: Organization ID not found.<br/>" +
+
+      "`RELEASE.hasDependents`: Cannot delete release because other releases depend on it.",
     required: false
   })
   @IsEnum(ErrorCode)
@@ -126,12 +131,14 @@ export class ErrorDto {
 export class AppError extends Error {
   errorCode: ErrorCode;
   statusCode?: number;
+  data?: any;
 
-  constructor(errorCode: ErrorCode, message?: string, statusCode?: number) {
+  constructor(errorCode: ErrorCode, message?: string, statusCode?: number, data?: any) {
     super(message);
     this.name = "AppError";
     this.errorCode = errorCode;
     this.statusCode = statusCode;
+    this.data = data;
     Object.setPrototypeOf(this, AppError.prototype);
   }
 }
