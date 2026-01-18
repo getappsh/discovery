@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
-import { PendingVersionStatus } from "@app/common/database/entities/pending-version.entity";
+import { PendingVersionStatus, PendingVersionEntity } from "@app/common/database/entities/pending-version.entity";
 import { Type } from "class-transformer";
 
 export class PendingVersionDto {
@@ -107,4 +107,23 @@ export class RejectPendingVersionDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+/**
+ * Convert PendingVersionEntity to PendingVersionDto
+ */
+export function toPendingVersionDto(entity: PendingVersionEntity): PendingVersionDto {
+  return {
+    id: entity.id,
+    projectName: entity.projectName,
+    version: entity.version,
+    catalogId: entity.catalogId,
+    status: entity.status,
+    reportedCount: entity.reportedCount,
+    firstReportedDate: entity.firstReportedDate,
+    lastReportedDate: entity.lastReportedDate,
+    reportingDeviceIds: entity.reportingDeviceIds,
+    metadata: entity.metadata,
+    reason: entity.reason
+  };
 }

@@ -8,6 +8,7 @@ import {
   PendingVersionDto, 
   PendingVersionListDto, 
   RejectPendingVersionDto,
+  toPendingVersionDto,
 } from '@app/common/dto/discovery';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { Inject } from '@nestjs/common';
@@ -131,19 +132,7 @@ export class PendingVersionService {
       .take(limit)
       .getManyAndCount();
 
-    const versionDtos: PendingVersionDto[] = versions.map(v => ({
-      id: v.id,
-      projectName: v.projectName,
-      version: v.version,
-      catalogId: v.catalogId,
-      status: v.status,
-      reportedCount: v.reportedCount,
-      firstReportedDate: v.firstReportedDate,
-      lastReportedDate: v.lastReportedDate,
-      reportingDeviceIds: v.reportingDeviceIds,
-      metadata: v.metadata,
-      reason: v.reason
-    }));
+    const versionDtos = versions.map(v => toPendingVersionDto(v));
 
     return {
       versions: versionDtos,
