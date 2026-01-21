@@ -239,7 +239,7 @@ export class DiscoveryService {
       if (dto.supportedFields && dto.supportedFields.length > 0) {
         try {
           this.logger.debug(`Sending ${dto.supportedFields.length} supported field(s) from device ${device.ID} to upload microservice`);
-          this.uploadClient.emit(UploadTopicsEmit.SYNC_DEVICE_FIELDS, {
+          this.uploadClient.emit(UploadTopicsEmit.SYNC_DEVICE_RULE_FIELDS, {
             deviceId: device.ID,
             fields: dto.supportedFields,
           });
