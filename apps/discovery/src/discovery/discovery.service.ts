@@ -8,13 +8,15 @@ import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
 import { DeviceService } from '../device/device.service';
 import { DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { ComponentV2Dto } from '@app/common/dto/upload';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { PendingVersionService } from '../pending-version/pending-version.service';
 import { AppError, ErrorCode } from '@app/common/dto/error';
 import { RuleService } from '@app/common/rules/services';
 import { RuleType } from '@app/common/rules/enums/rule.enums';
+import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
+import { UploadTopicsEmit } from '@app/common/microservice-client/topics';
 
 @Injectable()
 export class DiscoveryService {
@@ -32,6 +34,7 @@ export class DiscoveryService {
     private readonly dataSource: DataSource,
     private readonly ruleService: RuleService,
     private readonly pendingVersionService: PendingVersionService,
+    @Inject(MicroserviceName.UPLOAD_SERVICE) private readonly uploadClient: MicroserviceClient,
   ) {
   }
 
@@ -230,6 +233,19 @@ export class DiscoveryService {
       } catch (err) {
         this.logger.error(`Failed to get restrictions for device ${device.ID}: ${err}`);
         dto.restrictions = [];
+      }
+
+      // Send supported fields to upload microservice for syncing with database
+      if (dto.supportedFields && dto.supportedFields.length > 0) {
+        try {
+          this.logger.debug(`Sending ${dto.supportedFields.length} supported field(s) from device ${device.ID} to upload microservice`);
+          this.uploadClient.emit(UploadTopicsEmit.SYNC_DEVICE_FIELDS, {
+            deviceId: device.ID,
+            fields: dto.supportedFields,
+          });
+        } catch (err) {
+          this.logger.error(`Failed to send device fields to upload microservice for device ${device.ID}: ${err}`);
+        }
       }
     }
 

@@ -38,6 +38,7 @@ export const UploadTopics = {
 export const UploadTopicsEmit = {
     PROJECT_REGULATION_CHANGED: `getapp-upload.project-regulation-changed${region}`,
     UPDATE_FILE_UPLOAD: `getapp-upload.update-file-upload${region}`,
+    SYNC_DEVICE_FIELDS: `getapp-upload.sync-device-fields${region}`,
 }
 
 export const DeliveryTopics = {
