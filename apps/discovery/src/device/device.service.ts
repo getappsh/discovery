@@ -446,7 +446,8 @@ export class DeviceService {
       .getMany();
 
     return devices.map(device => {
-      const dis = discoveries.find(dis => (dis?.device.ID || "") == device.ID)
+      // loadAllRelationIds() converts relation fields to IDs at runtime, but TypeScript still types them as entities
+      const dis = discoveries.find(dis => (dis?.device as any) == device.ID)
       return DeviceDto.fromDeviceEntity(device, dis);
     })
   }
