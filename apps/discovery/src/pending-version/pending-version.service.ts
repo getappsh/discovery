@@ -170,6 +170,12 @@ export class PendingVersionService implements OnModuleInit {
         )
       );
       this.logger.log(`Project ${projectName} already exists with ID: ${project.id}`);
+      
+      // Ensure project has projectName field set, fallback to name or parameter
+      if (!project.projectName) {
+        project.projectName = project.name || projectName;
+      }
+      
       return project;
     } catch (error) {
       // Project doesn't exist, create it
@@ -198,12 +204,16 @@ export class PendingVersionService implements OnModuleInit {
     project: any,
     version: string,
     reportingDeviceIds: string[],
+    projectName: string,
     reason?: string,
     isDraft?: boolean
   ): Promise<ReleaseEntity> {
+    // Use projectName parameter as fallback since project object might not have projectName field
+    const projectIdentifier = project.projectName || project.name || projectName;
+    
     const setReleaseDto: Partial<SetReleaseDto> & { projectId: number; version: string } = {
       projectId: project.id,
-      projectIdentifier: project.projectName,
+      projectIdentifier: projectIdentifier,
       version: version,
       name: `v${version}`,
       releaseNotes: reason || 'Auto-created from pending version reported by devices',
@@ -305,6 +315,7 @@ export class PendingVersionService implements OnModuleInit {
         project,
         dto.version,
         pendingVersion.reportingDeviceIds,
+        dto.projectName,
         dto.reason,
         dto.isDraft
       );
