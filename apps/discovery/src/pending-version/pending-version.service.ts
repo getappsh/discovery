@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PendingVersionEntity, PendingVersionStatus } from '@app/common/database/entities/pending-version.entity';
@@ -20,7 +20,7 @@ import { ProjectType } from '@app/common/database/entities';
 import { ClsService } from 'nestjs-cls';
 
 @Injectable()
-export class PendingVersionService {
+export class PendingVersionService implements OnModuleInit {
   private readonly logger = new Logger(PendingVersionService.name);
 
   constructor(
@@ -38,6 +38,24 @@ export class PendingVersionService {
     private readonly uploadClient: MicroserviceClient,
     private readonly cls: ClsService,
   ) {}
+
+  async onModuleInit() {
+    // Subscribe to response topics for Kafka request-response pattern
+    this.projectManagementClient.subscribeToResponseOf([
+      ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER,
+      ProjectManagementTopics.CREATE_PROJECT,
+    ]);
+    this.uploadClient.subscribeToResponseOf([
+      UploadTopics.SET_RELEASE,
+    ]);
+    
+    await Promise.all([
+      this.projectManagementClient.connect(),
+      this.uploadClient.connect(),
+    ]);
+    
+    this.logger.log('PendingVersionService initialized and connected to microservices');
+  }
 
   /**
    * Store or update a pending version when a device reports an unknown version
