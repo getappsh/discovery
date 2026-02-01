@@ -206,6 +206,8 @@ export const DeviceTopics = {
     CHECK_HEALTH: `getapp-device.check-health${region}`,
     // Pending Versions
     LIST_PENDING_VERSIONS: `getapp-device.pending-versions.list${region}`,
+    // Device Restrictions
+    GET_DEVICE_RESTRICTIONS: `getapp-device.get-device-restrictions${region}`,
 } as const
 
 export const DeviceTopicsEmit = {

@@ -41,4 +41,9 @@ export class DiscoveryController {
   updateMTlsStatus(@RpcPayload() mTlsStatus: MTlsStatusDto) {
     this.discoveryService.updateMTlsStatusForDevice(mTlsStatus);
   }
+
+  @MessagePattern(DeviceTopics.GET_DEVICE_RESTRICTIONS)
+  async getDeviceRestrictions(@RpcPayload() deviceId: string): Promise<any[]> {
+    return this.discoveryService.getRestrictionsForDevice(deviceId);
+  }
 }

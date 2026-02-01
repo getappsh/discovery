@@ -225,27 +225,16 @@ export class DiscoveryService {
       }
     }
 
-    // Collect and add restrictions to the DTO
-    if (!parent && device.ID) {
+    // Send supported fields to upload microservice for syncing with database
+    if (!parent && device.ID && dto.supportedFields && dto.supportedFields.length > 0) {
       try {
-        dto.restrictions = await this.getRestrictionsForDevice(device.ID);
-        this.logger.debug(`Added ${dto.restrictions?.length || 0} restriction(s) to discovery message for device ${device.ID}`);
+        this.logger.debug(`Sending ${dto.supportedFields.length} supported field(s) from device ${device.ID} to upload microservice`);
+        this.uploadClient.emit(UploadTopicsEmit.SYNC_DEVICE_RULE_FIELDS, {
+          deviceId: device.ID,
+          fields: dto.supportedFields,
+        });
       } catch (err) {
-        this.logger.error(`Failed to get restrictions for device ${device.ID}: ${err}`);
-        dto.restrictions = [];
-      }
-
-      // Send supported fields to upload microservice for syncing with database
-      if (dto.supportedFields && dto.supportedFields.length > 0) {
-        try {
-          this.logger.debug(`Sending ${dto.supportedFields.length} supported field(s) from device ${device.ID} to upload microservice`);
-          this.uploadClient.emit(UploadTopicsEmit.SYNC_DEVICE_RULE_FIELDS, {
-            deviceId: device.ID,
-            fields: dto.supportedFields,
-          });
-        } catch (err) {
-          this.logger.error(`Failed to send device fields to upload microservice for device ${device.ID}: ${err}`);
-        }
+        this.logger.error(`Failed to send device fields to upload microservice for device ${device.ID}: ${err}`);
       }
     }
 
