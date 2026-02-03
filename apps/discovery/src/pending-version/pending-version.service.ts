@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PendingVersionEntity, PendingVersionStatus } from '@app/common/database/entities/pending-version.entity';
@@ -20,7 +20,7 @@ import { ProjectType } from '@app/common/database/entities';
 import { ClsService } from 'nestjs-cls';
 
 @Injectable()
-export class PendingVersionService {
+export class PendingVersionService implements OnModuleInit {
   private readonly logger = new Logger(PendingVersionService.name);
 
   constructor(
@@ -38,6 +38,24 @@ export class PendingVersionService {
     private readonly uploadClient: MicroserviceClient,
     private readonly cls: ClsService,
   ) {}
+
+  async onModuleInit() {
+    // Subscribe to response topics for Kafka request-response pattern
+    this.projectManagementClient.subscribeToResponseOf([
+      ProjectManagementTopics.GET_PROJECT_BY_IDENTIFIER,
+      ProjectManagementTopics.CREATE_PROJECT,
+    ]);
+    this.uploadClient.subscribeToResponseOf([
+      UploadTopics.SET_RELEASE,
+    ]);
+    
+    await Promise.all([
+      this.projectManagementClient.connect(),
+      this.uploadClient.connect(),
+    ]);
+    
+    this.logger.log('PendingVersionService initialized and connected to microservices');
+  }
 
   /**
    * Store or update a pending version when a device reports an unknown version
@@ -152,6 +170,12 @@ export class PendingVersionService {
         )
       );
       this.logger.log(`Project ${projectName} already exists with ID: ${project.id}`);
+      
+      // Ensure project has projectName field set, fallback to name or parameter
+      if (!project.projectName) {
+        project.projectName = project.name || projectName;
+      }
+      
       return project;
     } catch (error) {
       // Project doesn't exist, create it
@@ -180,12 +204,16 @@ export class PendingVersionService {
     project: any,
     version: string,
     reportingDeviceIds: string[],
+    projectName: string,
     reason?: string,
     isDraft?: boolean
   ): Promise<ReleaseEntity> {
+    // Use projectName parameter as fallback since project object might not have projectName field
+    const projectIdentifier = project.projectName || project.name || projectName;
+    
     const setReleaseDto: Partial<SetReleaseDto> & { projectId: number; version: string } = {
       projectId: project.id,
-      projectIdentifier: project.projectName,
+      projectIdentifier: projectIdentifier,
       version: version,
       name: `v${version}`,
       releaseNotes: reason || 'Auto-created from pending version reported by devices',
@@ -287,6 +315,7 @@ export class PendingVersionService {
         project,
         dto.version,
         pendingVersion.reportingDeviceIds,
+        dto.projectName,
         dto.reason,
         dto.isDraft
       );

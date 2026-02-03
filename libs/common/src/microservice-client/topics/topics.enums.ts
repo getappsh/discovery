@@ -32,6 +32,9 @@ export const UploadTopics = {
 
     // Rules - Policies
     GET_POLICIES: `getapp-upload.get-policies${region}`,
+    // Export/Import
+    EXPORT_RELEASE: `getapp-upload.export-release${region}`,
+    IMPORT_RELEASE: `getapp-upload.import-release${region}`,
 
 } as const
 
