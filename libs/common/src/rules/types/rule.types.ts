@@ -1,19 +1,9 @@
 import { RuleType } from '../enums/rule.enums';
+import { ReleaseIdentifierDto, RuleAssociationDto } from '../dto';
 
-export interface ReleaseIdentifier {
-  projectName: string;
-  version: string;
-}
-
-export interface RuleAssociation {
-  // For policies (managed by upload service)
-  releases?: ReleaseIdentifier[];
-  
-  // For restrictions (managed by discovery service)
-  deviceTypeNames?: string[];
-  osTypes?: string[];
-  deviceIds?: string[];
-}
+// Re-export DTOs as types for backward compatibility
+export type ReleaseIdentifier = ReleaseIdentifierDto;
+export type RuleAssociation = RuleAssociationDto;
 
 export interface RuleDefinition {
   id: string;
