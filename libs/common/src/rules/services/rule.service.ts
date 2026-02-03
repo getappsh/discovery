@@ -9,7 +9,7 @@ import { RuleOsEntity } from '../../database/entities/rule-os.entity';
 import { ReleaseEntity } from '../../database/entities/release.entity';
 import { DeviceTypeEntity } from '../../database/entities/device-type.entity';
 import { DeviceEntity } from '../../database/entities/device.entity';
-import { CreateRuleDto, CreatePolicyDto, CreateRestrictionDto, UpdateRuleDto, RuleQueryDto, RestrictionQueryDto } from '../dto';
+import { CreateRuleDto, CreatePolicyDto, CreateRestrictionDto, UpdateRuleDto, PolicyQueryDto, RestrictionQueryDto } from '../dto';
 import { RuleValidationService } from './rule-validation.service';
 import { RuleType } from '../enums/rule.enums';
 import { RuleDefinition } from '../types/rule.types';
@@ -144,7 +144,7 @@ export class RuleService {
   /**
    * Finds all rules with optional filters
    */
-  async findAll(query: RuleQueryDto | RestrictionQueryDto): Promise<RuleEntity[]> {
+  async findAll(query: PolicyQueryDto | RestrictionQueryDto): Promise<RuleEntity[]> {
     const queryBuilder = this.ruleRepository
       .createQueryBuilder('rule')
       .leftJoinAndSelect('rule.releaseAssociations', 'releaseAssoc')
@@ -164,12 +164,12 @@ export class RuleService {
       queryBuilder.andWhere('rule.isActive = :isActive', { isActive: query.isActive });
     }
 
-    // Handle releaseId for policies (RuleQueryDto only)
+    // Handle releaseId for policies (PolicyQueryDto only)
     if ('releaseId' in query && query.releaseId) {
       queryBuilder.andWhere('release.catalogId = :releaseId', { releaseId: query.releaseId });
     }
 
-    // Handle deviceTypeId for backward compatibility (RuleQueryDto)
+    // Handle deviceTypeId for backward compatibility (PolicyQueryDto)
     if ('deviceTypeId' in query && query.deviceTypeId) {
       queryBuilder.andWhere('deviceType.id = :deviceTypeId', { deviceTypeId: query.deviceTypeId });
     }
