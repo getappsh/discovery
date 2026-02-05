@@ -4,6 +4,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { RuleType } from '../enums/rule.enums';
 
 export class ReleaseIdentifierDto {
+  @ApiPropertyOptional({ description: 'Project ID' })
+  @IsOptional()
+  @IsString()
+  projectId?: string;
+
   @ApiProperty({ description: 'Project name' })
   @IsString()
   @IsNotEmpty()
