@@ -4,6 +4,78 @@ import { IsNotEmpty, IsOptional, IsSemVer, IsString, IsBoolean } from "class-val
 import { ReleaseArtifactDto } from "./release-artifact.dto";
 import { Type } from "class-transformer";
 import { ProjectIdentifierParams } from "@app/common/dto/project-management";
+import { RuleType } from "@app/common/rules/enums/rule.enums";
+
+export class ReleaseIdentifierDto {
+  @ApiProperty({ description: 'Project name' })
+  projectName: string;
+
+  @ApiProperty({ description: 'Release version' })
+  version: string;
+}
+
+export class PolicyAssociationDto {
+  @ApiProperty({ description: 'Associated releases for policies', type: [ReleaseIdentifierDto], required: false })
+  releases?: ReleaseIdentifierDto[];
+}
+
+export class RestrictionAssociationDto {
+  @ApiProperty({ description: 'Associated device type names for restrictions', type: [String], required: false })
+  deviceTypeNames?: string[];
+
+  @ApiProperty({ description: 'Associated OS types for restrictions', type: [String], required: false })
+  osTypes?: string[];
+
+  @ApiProperty({ description: 'Associated device IDs for restrictions', type: [String], required: false })
+  deviceIds?: string[];
+}
+
+// Combined DTO for backward compatibility
+export class RuleAssociationDto {
+  @ApiProperty({ description: 'Associated releases for policies', type: [ReleaseIdentifierDto], required: false })
+  releases?: ReleaseIdentifierDto[];
+
+  @ApiProperty({ description: 'Associated device type names for restrictions', type: [String], required: false })
+  deviceTypeNames?: string[];
+
+  @ApiProperty({ description: 'Associated OS types for restrictions', type: [String], required: false })
+  osTypes?: string[];
+
+  @ApiProperty({ description: 'Associated device IDs for restrictions', type: [String], required: false })
+  deviceIds?: string[];
+}
+
+export class ReleasePolicyDto {
+  @ApiProperty({ description: 'Policy rule ID' })
+  id: string;
+
+  @ApiProperty({ description: 'Policy name' })
+  name: string;
+
+  @ApiProperty({ description: 'Policy description', required: false })
+  description?: string;
+
+  @ApiProperty({ description: 'Policy type', enum: RuleType })
+  type: RuleType;
+
+  @ApiProperty({ description: 'Policy associations (releases, device types, OS types, devices)', type: RuleAssociationDto })
+  association: RuleAssociationDto;
+
+  @ApiProperty({ description: 'Policy version number' })
+  version: number;
+
+  @ApiProperty({ description: 'Policy creation timestamp' })
+  createdAt: string;
+
+  @ApiProperty({ description: 'Policy last update timestamp' })
+  updatedAt: string;
+
+  @ApiProperty({ description: 'Whether the policy is active' })
+  isActive: boolean;
+
+  @ApiProperty({ description: 'The policy rule definition conforming to rule engine schema' })
+  rule: any;
+}
 
 export class SetReleaseDto {
 

@@ -1,9 +1,11 @@
 import { RuleType } from '../enums/rule.enums';
-import { ReleaseIdentifierDto, RuleAssociationDto } from '../dto';
+import { ReleaseIdentifierDto, RuleAssociationDto, PolicyAssociationDto, RestrictionAssociationDto } from '../dto';
 
 // Re-export DTOs as types for backward compatibility
 export type ReleaseIdentifier = ReleaseIdentifierDto;
 export type RuleAssociation = RuleAssociationDto;
+export type PolicyAssociation = PolicyAssociationDto;
+export type RestrictionAssociation = RestrictionAssociationDto;
 
 export interface RuleDefinition {
   id: string;

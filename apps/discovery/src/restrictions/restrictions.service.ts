@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { RuleService, RuleValidationService } from '@app/common/rules/services';
-import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
+import { RuleService } from '@app/common/rules/services';
+import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto } from '@app/common/rules/dto';
 import { RuleType } from '@app/common/rules/enums/rule.enums';
 
 @Injectable()
 export class RestrictionsService {
   constructor(
     private readonly ruleService: RuleService,
-    private readonly ruleValidationService: RuleValidationService,
   ) {}
 
   /**
@@ -57,26 +56,5 @@ export class RestrictionsService {
     
     const rules = await this.ruleService.findAll(query);
     return rules.map(rule => this.ruleService.ruleEntityToDefinition(rule));
-  }
-
-  /**
-   * Gets all available rule fields
-   */
-  async getAvailableFields() {
-    return this.ruleValidationService.getAvailableFields();
-  }
-
-  /**
-   * Adds a new rule field
-   */
-  async addRuleField(fieldData: any) {
-    return this.ruleValidationService.addRuleField(fieldData);
-  }
-
-  /**
-   * Removes a rule field
-   */
-  async removeRuleField(fieldName: string) {
-    return this.ruleValidationService.removeRuleField(fieldName);
   }
 }

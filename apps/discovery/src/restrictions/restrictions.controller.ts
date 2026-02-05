@@ -2,7 +2,7 @@ import { Controller, Logger } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { DeviceTopics } from '@app/common/microservice-client/topics';
 import { RpcPayload } from '@app/common/microservice-client';
-import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, CreateRuleFieldDto } from '@app/common/rules/dto';
+import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto } from '@app/common/rules/dto';
 import { RestrictionsService } from './restrictions.service';
 import { ValidateProjectAnyAccess } from '@app/common/utils/project-access';
 
@@ -57,35 +57,5 @@ export class RestrictionsController {
   async deleteRestriction(@RpcPayload() id: string) {
     this.logger.log(`Deleting restriction ${id}`);
     return this.restrictionsService.deleteRestriction(id);
-  }
-
-  /**
-   * Get available rule fields
-   * This endpoint is used by multiple microservices (upload, api) via Kafka
-   */
-  @MessagePattern(DeviceTopics.GET_RULE_FIELDS)
-  async getAvailableFields() {
-    this.logger.log('Getting available rule fields');
-    return this.restrictionsService.getAvailableFields();
-  }
-
-  /**
-   * Add a new rule field
-   * This endpoint is used by multiple microservices (upload, api) via Kafka
-   */
-  @MessagePattern(DeviceTopics.ADD_RULE_FIELD)
-  async addRuleField(@RpcPayload() fieldData: CreateRuleFieldDto) {
-    this.logger.log('Adding rule field');
-    return this.restrictionsService.addRuleField(fieldData);
-  }
-
-  /**
-   * Remove a rule field
-   * This endpoint is used by multiple microservices (upload, api) via Kafka
-   */
-  @MessagePattern(DeviceTopics.REMOVE_RULE_FIELD)
-  async removeRuleField(@RpcPayload() fieldName: string) {
-    this.logger.log(`Removing rule field ${fieldName}`);
-    return this.restrictionsService.removeRuleField(fieldName);
   }
 }
