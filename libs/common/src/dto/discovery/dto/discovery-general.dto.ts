@@ -1,69 +1,158 @@
-import { DeviceEntity } from "@app/common/database/entities";
-import { Logger } from "@nestjs/common";
+import { OS } from "@app/common/database/entities";
+import { Deprecated } from "@app/common/decorators";
+import { IsValidStringFor } from "@app/common/validators";
+import { Pattern } from "@app/common/validators/regex.validator";
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNumber, IsOptional, IsString } from "class-validator";
-import { DiscoveryMessageV2Dto } from "../../discovery";
+import { Type } from "class-transformer";
+import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
 
-export class DevicePutDto {
-  static logger = new Logger(DevicePutDto.name)
-
-  deviceId: string
+export class PersonalDiscoveryDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  name?: string
+  name: string;
 
-  @ApiProperty({
-    required: false,
-    description: "Set the unique given id or null to remove the exists uid.",
-    nullable: true,
-    type: Number
-  })
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  idNumber: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  personalNumber: string
+}
+
+
+export class GeoLocationDto {
+
+  @ApiProperty()
+  @IsString()
+  lat: string;
+
+  @ApiProperty()
+  @IsString()
+  long: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  alt: string;
+}
+
+export class SituationalDiscoveryDto {
+
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
-  orgUID?: number | null;
+  weather: number;
 
-  @ApiProperty({
-    required: false,
-    description: "Set group ID to associate the device with a specific group. set to null to remove the existing group association.",
-    nullable: true,
-    type: Number
-  })
+  @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
-  groupId?: number | null
+  bandwidth: number;
 
-  toString() {
-    return JSON.stringify(this);
-  }
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsDateString()
+  time: Date;
 
-  static fromDeviceEntity(dE: DeviceEntity) {
-    const device = new DevicePutDto()
-    device.deviceId = dE.ID
-    device.name = dE.name
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  operativeState: boolean;
 
-    if (dE.orgUID && dE.orgUID.UID) {
-      device.orgUID = dE.orgUID.UID
-      device.groupId = dE.orgUID.group?.id || null;
-    }
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Min(0)
+  @Max(100)
+  power: number;
 
-    return device
-  }
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  availableStorage: string
 
-  static fromDeviceDiscovery(dto: DiscoveryMessageV2Dto) {
-    const device = new DevicePutDto()
-    device.deviceId = dto.id
-    device.name = dto?.general?.personalDevice?.name
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GeoLocationDto)
+  location: GeoLocationDto;
 
-    if (dto?.general?.physicalDevice?.serialNumber) {
-      device.orgUID = parseInt(dto.general.physicalDevice.serialNumber)
-      if (isNaN(device.orgUID)) {
-        this.logger.warn(`Cannot parse serialNumber ${dto.general.physicalDevice.serialNumber} to number for orgUID from device ${device.deviceId} - setting orgUID to null`)
-        device.orgUID = null
-      }
-    }
+}
 
-    return device
-  }
+export class PhysicalDiscoveryDto {
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsValidStringFor(Pattern.MAC)
+  MAC: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsValidStringFor(Pattern.IP)
+  IP: string;
+
+  /**
+   * @deprecated This field is deprecated and will be removed in the future. use instead id in the root object
+   */
+  @Deprecated()
+  @ApiProperty({ required: false, deprecated: true })
+  @IsOptional()
+  @IsString()
+  ID: string;
+
+  @ApiProperty({ enum: OS, required: false })
+  @IsOptional()
+  @IsNotEmpty()
+  @IsEnum(OS)
+  OS: OS;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  serialNumber: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  possibleBandwidth: string;
+
+
+  /**
+    * @deprecated This field is deprecated and will be removed in the future. use instead SituationalDiscoveryDto.availableStorage
+    */
+  @ApiProperty({ required: false, deprecated: true })
+  @Deprecated()
+  @IsOptional()
+  @IsString()
+  availableStorage: string
+
+}
+
+
+export class GeneralDiscoveryDto {
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => PersonalDiscoveryDto)
+  personalDevice?: PersonalDiscoveryDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => SituationalDiscoveryDto)
+  situationalDevice?: SituationalDiscoveryDto;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => PhysicalDiscoveryDto)
+  physicalDevice?: PhysicalDiscoveryDto;
+
 }
