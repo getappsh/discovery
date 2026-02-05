@@ -30,20 +30,7 @@ export class RestrictionAssociationDto {
   deviceIds?: string[];
 }
 
-// Combined DTO for backward compatibility
-export class RuleAssociationDto {
-  @ApiProperty({ description: 'Associated releases for policies', type: [ReleaseIdentifierDto], required: false })
-  releases?: ReleaseIdentifierDto[];
 
-  @ApiProperty({ description: 'Associated device type names for restrictions', type: [String], required: false })
-  deviceTypeNames?: string[];
-
-  @ApiProperty({ description: 'Associated OS types for restrictions', type: [String], required: false })
-  osTypes?: string[];
-
-  @ApiProperty({ description: 'Associated device IDs for restrictions', type: [String], required: false })
-  deviceIds?: string[];
-}
 
 export class ReleasePolicyDto {
   @ApiProperty({ description: 'Policy rule ID' })
@@ -58,8 +45,8 @@ export class ReleasePolicyDto {
   @ApiProperty({ description: 'Policy type', enum: RuleType })
   type: RuleType;
 
-  @ApiProperty({ description: 'Policy associations (releases, device types, OS types, devices)', type: RuleAssociationDto })
-  association: RuleAssociationDto;
+  @ApiProperty({ description: 'Policy associations (releases, device types, OS types, devices)', type: PolicyAssociationDto })
+  association: PolicyAssociationDto;
 
   @ApiProperty({ description: 'Policy version number' })
   version: number;
@@ -204,6 +191,9 @@ export class DetailedReleaseDto extends ReleaseDto {
   @ApiProperty({ type: ReleaseDto, isArray: true, required: false })
   dependencies: ReleaseDto[]
 
+  @ApiProperty({ type: ReleasePolicyDto, isArray: true, required: false, description: 'Policies associated with this release' })
+  policies?: ReleasePolicyDto[];
+
 
   static fromEntity(release: ReleaseEntity): DetailedReleaseDto {
     const baseDto = super.fromEntity(release);
@@ -213,6 +203,15 @@ export class DetailedReleaseDto extends ReleaseDto {
 
     dto.artifacts = release?.artifacts?.map(art => ReleaseArtifactDto.fromEntity(art))
     dto.dependencies = release?.dependencies?.map(dep => ReleaseDto.fromEntity(dep))
+    dto.policies = release?.policyAssociations?.map(policyAssoc => {
+      const policy = new ReleasePolicyDto();
+      policy.id = policyAssoc.rule.id;
+      policy.name = policyAssoc.rule.name;
+      policy.description = policyAssoc.rule.description;
+      policy.isActive = policyAssoc.rule.isActive;
+      policy.rule = policyAssoc.rule.rule;
+      return policy;
+    }) ?? [];
 
     return dto
 
@@ -255,6 +254,9 @@ export class ComponentV2Dto {
 
   @ApiProperty({ required: false })
   releasedAt?: Date
+
+  @ApiProperty({ required: false, type: [ReleasePolicyDto], description: 'Policies associated with this release' })
+  policies?: ReleasePolicyDto[]
 
   static fromEntity(release: ReleaseEntity): ComponentV2Dto {
     const dto = new ComponentV2Dto();
