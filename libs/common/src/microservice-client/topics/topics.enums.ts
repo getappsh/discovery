@@ -30,6 +30,8 @@ export const UploadTopics = {
     //update file metadata
     UPDATE_FILE_METADATA: `getapp-upload.update-file-metadata${region}`,
 
+    // Rules - Policies
+    GET_POLICIES: `getapp-upload.get-policies${region}`,
     // Export/Import
     EXPORT_RELEASE: `getapp-upload.export-release${region}`,
     IMPORT_RELEASE: `getapp-upload.import-release${region}`,
@@ -39,6 +41,7 @@ export const UploadTopics = {
 export const UploadTopicsEmit = {
     PROJECT_REGULATION_CHANGED: `getapp-upload.project-regulation-changed${region}`,
     UPDATE_FILE_UPLOAD: `getapp-upload.update-file-upload${region}`,
+    SYNC_DEVICE_RULE_FIELDS: `getapp-upload.sync-device-rule-fields${region}`,
 }
 
 export const DeliveryTopics = {
@@ -191,14 +194,27 @@ export const DeviceTopics = {
     // Config
     GET_DEVICE_CONFIG: `getapp-device.config.get${region}`,
     SET_DEVICE_CONFIG: `getapp-device.config.set${region}`,
+    
+    // Rules - Restrictions
+    GET_RESTRICTIONS: `getapp-device.get-restrictions${region}`,
+    CREATE_RESTRICTION: `getapp-device.create-restriction${region}`,
+    GET_RESTRICTION: `getapp-device.get-restriction${region}`,
+    UPDATE_RESTRICTION: `getapp-device.update-restriction${region}`,
+    DELETE_RESTRICTION: `getapp-device.delete-restriction${region}`,
+    GET_RULE_FIELDS: `getapp-device.get-rule-fields${region}`,
+    ADD_RULE_FIELD: `getapp-device.add-rule-field${region}`,
+    REMOVE_RULE_FIELD: `getapp-device.remove-rule-field${region}`,
+    
+    DISCOVER_DEVICE_CONTEXT_V2: `getapp-device.discover.device-context-V2${region}`,
     CHECK_HEALTH: `getapp-device.check-health${region}`,
     // Pending Versions
     LIST_PENDING_VERSIONS: `getapp-device.pending-versions.list${region}`,
+    // Device Restrictions
+    GET_DEVICE_RESTRICTIONS: `getapp-device.get-device-restrictions${region}`,
 } as const
 
 export const DeviceTopicsEmit = {
     DISCOVER_DEVICE_CONTEXT: `getapp-device.discover.device-context${region}`,
-    DISCOVER_DEVICE_CONTEXT_V2: `getapp-device.discover.device-context-V2${region}`,
     UPDATE_DEVICE_SOFTWARE_STATE: `getapp-device.device.update-software-state${region}`,
     UPDATE_DEVICE_MAP_STATE: `getapp-device.device.update-map-state${region}`,
     REGISTER_MAP_TO_DEVICE: `getapp-device.map.register-to-device${region}`,
