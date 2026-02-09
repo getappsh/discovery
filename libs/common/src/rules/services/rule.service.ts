@@ -225,10 +225,19 @@ export class RuleService {
   private async createAssociations(rule: RuleEntity, association: any): Promise<void> {
     // Release associations (for policies)
     if (association.releases && association.releases.length > 0) {
-      this.logger.debug(`Creating associations for ${association.releases.length} release(s)`);
+      const uniqueReleaseMap = new Map<string, any>();
+      for (const release of association.releases) {
+        const projectKey = release.projectId && typeof release.projectId === 'string' && release.projectId.trim() !== ''
+          ? `projectId:${release.projectId.trim()}`
+          : `projectName:${release.projectName}`;
+        const versionKey = release.version ?? '';
+        uniqueReleaseMap.set(`${projectKey}|version:${versionKey}`, release);
+      }
+      const uniqueReleases = Array.from(uniqueReleaseMap.values());
+      this.logger.debug(`Creating associations for ${uniqueReleases.length} unique release(s)`);
       
       // Build where conditions - prefer projectId over projectName
-      const whereConditions = association.releases.map(r => {
+      const whereConditions = uniqueReleases.map(r => {
         // Check if projectId is provided and is a non-empty string
         if (r.projectId && typeof r.projectId === 'string' && r.projectId.trim() !== '') {
           // Use projectId if provided (preferred since names can change)
@@ -256,8 +265,8 @@ export class RuleService {
 
       this.logger.debug(`Found ${releases.length} release(s) in database`);
 
-      if (releases.length !== association.releases.length) {
-        const requestedReleases = association.releases.map(r => 
+      if (releases.length !== uniqueReleases.length) {
+        const requestedReleases = uniqueReleases.map(r => 
           r.projectId ? `projectId=${r.projectId}, version=${r.version}` : `projectName=${r.projectName}, version=${r.version}`
         );
         const foundReleases = releases.map(r => 
@@ -265,7 +274,7 @@ export class RuleService {
         );
         this.logger.error(`Requested releases: ${JSON.stringify(requestedReleases)}`);
         this.logger.error(`Found releases: ${JSON.stringify(foundReleases)}`);
-        throw new BadRequestException(`One or more releases not found. Requested: ${association.releases.length}, Found: ${releases.length}`);
+        throw new BadRequestException(`One or more releases not found. Requested: ${uniqueReleases.length}, Found: ${releases.length}`);
       }
 
       const ruleReleases = releases.map(release =>
