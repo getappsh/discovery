@@ -1,3 +1,5 @@
+export * from './dto';
+export * from './enums';
 export * from './rule.module';
 export * from './services/rule.service';
 export * from './services/rule-validation.service';
