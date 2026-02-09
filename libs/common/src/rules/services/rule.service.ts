@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { RuleEntity } from '../../database/entities/rule.entity';
@@ -9,13 +9,14 @@ import { RuleOsEntity } from '../../database/entities/rule-os.entity';
 import { ReleaseEntity } from '../../database/entities/release.entity';
 import { DeviceTypeEntity } from '../../database/entities/device-type.entity';
 import { DeviceEntity } from '../../database/entities/device.entity';
-import { CreateRuleDto, CreatePolicyDto, CreateRestrictionDto, UpdateRuleDto, PolicyQueryDto, RestrictionQueryDto } from '../dto';
+import { CreateRuleDto, CreatePolicyDto, CreateRestrictionDto, UpdateRuleDto, PolicyQueryDto } from '../dto';
 import { RuleValidationService } from './rule-validation.service';
 import { RuleType } from '../enums/rule.enums';
 import { RuleDefinition } from '../types/rule.types';
 
 @Injectable()
 export class RuleService {
+  private readonly logger = new Logger(RuleService.name);
   constructor(
     @InjectRepository(RuleEntity)
     private readonly ruleRepository: Repository<RuleEntity>,
@@ -111,9 +112,10 @@ export class RuleService {
   /**
    * Deletes a rule
    */
-  async deleteRule(id: string): Promise<void> {
+  async deleteRule(id: string): Promise<{ success: boolean; message: string }> {
     const rule = await this.findOneById(id);
     await this.ruleRepository.remove(rule);
+    return { success: true, message: 'Rule deleted successfully' };
   }
 
   /**
@@ -144,7 +146,7 @@ export class RuleService {
   /**
    * Finds all rules with optional filters
    */
-  async findAll(query: PolicyQueryDto | RestrictionQueryDto): Promise<RuleEntity[]> {
+  async findAll(query: PolicyQueryDto, projectIds?: number[]): Promise<RuleEntity[]> {
     const queryBuilder = this.ruleRepository
       .createQueryBuilder('rule')
       .leftJoinAndSelect('rule.releaseAssociations', 'releaseAssoc')
@@ -164,19 +166,17 @@ export class RuleService {
       queryBuilder.andWhere('rule.isActive = :isActive', { isActive: query.isActive });
     }
 
-    // Handle releaseId for policies (PolicyQueryDto only)
-    if ('releaseId' in query && query.releaseId) {
+    // Filter by project IDs if provided (for policies)
+    if (projectIds && projectIds.length > 0 && query.type === RuleType.POLICY) {
+      queryBuilder.andWhere('project.id IN (:...projectIds)', { projectIds });
+    }
+
+    if (query.releaseId) {
       queryBuilder.andWhere('release.catalogId = :releaseId', { releaseId: query.releaseId });
     }
 
-    // Handle deviceTypeId for backward compatibility (PolicyQueryDto)
-    if ('deviceTypeId' in query && query.deviceTypeId) {
+    if (query.deviceTypeId) {
       queryBuilder.andWhere('deviceType.id = :deviceTypeId', { deviceTypeId: query.deviceTypeId });
-    }
-
-    // Handle deviceTypeName for restrictions (RestrictionQueryDto)
-    if ('deviceTypeName' in query && query.deviceTypeName) {
-      queryBuilder.andWhere('deviceType.name = :deviceTypeName', { deviceTypeName: query.deviceTypeName });
     }
 
     if (query.deviceId) {
@@ -208,6 +208,7 @@ export class RuleService {
       updatedAt: rule.updatedAt.toISOString(),
       association: {
         releases: rule.releaseAssociations?.map(ra => ({
+          projectId: ra.release?.project?.id?.toString(),
           projectName: ra.release?.project?.name,
           version: ra.release?.version,
         })) || [],
@@ -224,16 +225,47 @@ export class RuleService {
   private async createAssociations(rule: RuleEntity, association: any): Promise<void> {
     // Release associations (for policies)
     if (association.releases && association.releases.length > 0) {
+      this.logger.debug(`Creating associations for ${association.releases.length} release(s)`);
+      
+      // Build where conditions - prefer projectId over projectName
+      const whereConditions = association.releases.map(r => {
+        // Check if projectId is provided and is a non-empty string
+        if (r.projectId && typeof r.projectId === 'string' && r.projectId.trim() !== '') {
+          // Use projectId if provided (preferred since names can change)
+          this.logger.debug(`Using projectId: ${r.projectId}, version: ${r.version}`);
+          return {
+            project: { id: parseInt(r.projectId, 10) },
+            version: r.version,
+          };
+        } else if (r.projectName) {
+          // Fall back to projectName if projectId not provided or empty
+          this.logger.debug(`Using projectName: ${r.projectName}, version: ${r.version}`);
+          return {
+            project: { name: r.projectName },
+            version: r.version,
+          };
+        } else {
+          throw new BadRequestException('Either projectId or projectName must be provided for release identification');
+        }
+      });
+
       const releases = await this.releaseRepository.find({
-        where: association.releases.map(r => ({
-          project: { name: r.projectName },
-          version: r.version,
-        })),
+        where: whereConditions,
         relations: ['project'],
       });
 
+      this.logger.debug(`Found ${releases.length} release(s) in database`);
+
       if (releases.length !== association.releases.length) {
-        throw new BadRequestException('One or more releases not found');
+        const requestedReleases = association.releases.map(r => 
+          r.projectId ? `projectId=${r.projectId}, version=${r.version}` : `projectName=${r.projectName}, version=${r.version}`
+        );
+        const foundReleases = releases.map(r => 
+          `projectId=${r.project?.id}, projectName=${r.project?.name}, version=${r.version}`
+        );
+        this.logger.error(`Requested releases: ${JSON.stringify(requestedReleases)}`);
+        this.logger.error(`Found releases: ${JSON.stringify(foundReleases)}`);
+        throw new BadRequestException(`One or more releases not found. Requested: ${association.releases.length}, Found: ${releases.length}`);
       }
 
       const ruleReleases = releases.map(release =>

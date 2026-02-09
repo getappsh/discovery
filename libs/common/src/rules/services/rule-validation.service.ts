@@ -139,7 +139,7 @@ export class RuleValidationService {
   /**
    * Removes a rule field
    */
-  async removeRuleField(fieldName: string): Promise<void> {
+  async removeRuleField(fieldName: string): Promise<{ success: boolean; message: string }> {
     const field = await this.ruleFieldRepository.findOne({
       where: { name: fieldName },
     });
@@ -153,5 +153,6 @@ export class RuleValidationService {
     }
 
     await this.ruleFieldRepository.remove(field);
+    return { success: true, message: 'Field removed successfully' };
   }
 }

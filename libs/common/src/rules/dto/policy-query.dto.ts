@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsBoolean, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsBoolean, IsNumber, IsString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { RuleType } from '../enums/rule.enums';
@@ -8,7 +8,7 @@ export class PolicyQueryDto {
   @IsOptional()
   projectIdentifier?: string | number;
 
-  @ApiPropertyOptional({ enum: RuleType, description: 'Filter by rule type' })
+  @ApiPropertyOptional({ description: 'Filter by rule type', enum: RuleType })
   @IsOptional()
   @IsEnum(RuleType)
   type?: RuleType;
@@ -19,11 +19,10 @@ export class PolicyQueryDto {
   @Type(() => Boolean)
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'Filter by release ID' })
+  @ApiPropertyOptional({ description: 'Filter by release catalog ID' })
   @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  releaseId?: number;
+  @IsString()
+  releaseId?: string;
 
   @ApiPropertyOptional({ description: 'Filter by device type ID' })
   @IsOptional()

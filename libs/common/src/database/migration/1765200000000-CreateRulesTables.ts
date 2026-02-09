@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
+import { DEFAULT_ALLOW_ALL_DEVICES_RULE_NAME, DEFAULT_ALLOW_ALL_DEVICES_RULE_ID } from "../../rules/constants";
 
 export class CreateRulesTables1765200000000 implements MigrationInterface {
     name = 'CreateRulesTables1765200000000'
@@ -7,12 +8,18 @@ export class CreateRulesTables1765200000000 implements MigrationInterface {
         // Enable uuid-ossp extension if not already enabled
         await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
 
-        // Create rule_type enum
-        await queryRunner.query(`CREATE TYPE "public"."rule_type_enum" AS ENUM('policy', 'restriction')`);
-
-        // Create rules table
+        // Create rule_type enum if it doesn't exist
         await queryRunner.query(`
-            CREATE TABLE "rules" (
+            DO $$ BEGIN
+                CREATE TYPE "public"."rule_type_enum" AS ENUM('policy', 'restriction');
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+        `);
+
+        // Create rules table if it doesn't exist
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS "rules" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
                 "name" character varying(255) NOT NULL,
                 "description" text,
@@ -26,12 +33,12 @@ export class CreateRulesTables1765200000000 implements MigrationInterface {
             )
         `);
 
-        // Create index on type and isActive
-        await queryRunner.query(`CREATE INDEX "IDX_rules_type_isActive" ON "rules" ("type", "isActive")`);
+        // Create index on type and isActive if it doesn't exist
+        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_rules_type_isActive" ON "rules" ("type", "isActive")`);
 
-        // Create rule_fields table
+        // Create rule_fields table if it doesn't exist
         await queryRunner.query(`
-            CREATE TABLE "rule_fields" (
+            CREATE TABLE IF NOT EXISTS "rule_fields" (
                 "id" SERIAL NOT NULL,
                 "name" character varying(255) NOT NULL,
                 "type" character varying(50) NOT NULL,
@@ -44,12 +51,12 @@ export class CreateRulesTables1765200000000 implements MigrationInterface {
             )
         `);
 
-        // Create index on name
-        await queryRunner.query(`CREATE INDEX "IDX_rule_fields_name" ON "rule_fields" ("name")`);
+        // Create index on name if it doesn't exist
+        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_rule_fields_name" ON "rule_fields" ("name")`);
 
-        // Create rule_releases junction table (for policies)
+        // Create rule_releases junction table (for policies) if it doesn't exist
         await queryRunner.query(`
-            CREATE TABLE "rule_releases" (
+            CREATE TABLE IF NOT EXISTS "rule_releases" (
                 "id" SERIAL NOT NULL,
                 "rule_id" uuid NOT NULL,
                 "release_catalog_id" character varying NOT NULL,
@@ -60,12 +67,12 @@ export class CreateRulesTables1765200000000 implements MigrationInterface {
             )
         `);
 
-        // Create unique index on rule_releases
-        await queryRunner.query(`CREATE UNIQUE INDEX "IDX_rule_releases_rule_release" ON "rule_releases" ("rule_id", "release_catalog_id")`);
+        // Create unique index on rule_releases if it doesn't exist
+        await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_rule_releases_rule_release" ON "rule_releases" ("rule_id", "release_catalog_id")`);
 
-        // Create rule_device_types junction table (for restrictions)
+        // Create rule_device_types junction table (for restrictions) if it doesn't exist
         await queryRunner.query(`
-            CREATE TABLE "rule_device_types" (
+            CREATE TABLE IF NOT EXISTS "rule_device_types" (
                 "id" SERIAL NOT NULL,
                 "rule_id" uuid NOT NULL,
                 "device_type_id" integer NOT NULL,
@@ -76,12 +83,12 @@ export class CreateRulesTables1765200000000 implements MigrationInterface {
             )
         `);
 
-        // Create unique index on rule_device_types
-        await queryRunner.query(`CREATE UNIQUE INDEX "IDX_rule_device_types_rule_device_type" ON "rule_device_types" ("rule_id", "device_type_id")`);
+        // Create unique index on rule_device_types if it doesn't exist
+        await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_rule_device_types_rule_device_type" ON "rule_device_types" ("rule_id", "device_type_id")`);
 
-        // Create rule_devices junction table (for restrictions)
+        // Create rule_devices junction table (for restrictions) if it doesn't exist
         await queryRunner.query(`
-            CREATE TABLE "rule_devices" (
+            CREATE TABLE IF NOT EXISTS "rule_devices" (
                 "id" SERIAL NOT NULL,
                 "rule_id" uuid NOT NULL,
                 "device_id" character varying NOT NULL,
@@ -92,12 +99,12 @@ export class CreateRulesTables1765200000000 implements MigrationInterface {
             )
         `);
 
-        // Create unique index on rule_devices
-        await queryRunner.query(`CREATE UNIQUE INDEX "IDX_rule_devices_rule_device" ON "rule_devices" ("rule_id", "device_id")`);
+        // Create unique index on rule_devices if it doesn't exist
+        await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_rule_devices_rule_device" ON "rule_devices" ("rule_id", "device_id")`);
 
-        // Create rule_os table (for restrictions)
+        // Create rule_os table (for restrictions) if it doesn't exist
         await queryRunner.query(`
-            CREATE TABLE "rule_os" (
+            CREATE TABLE IF NOT EXISTS "rule_os" (
                 "id" SERIAL NOT NULL,
                 "rule_id" uuid NOT NULL,
                 "osType" character varying(100) NOT NULL,
@@ -107,10 +114,10 @@ export class CreateRulesTables1765200000000 implements MigrationInterface {
             )
         `);
 
-        // Create unique index on rule_os
-        await queryRunner.query(`CREATE UNIQUE INDEX "IDX_rule_os_rule_osType" ON "rule_os" ("rule_id", "osType")`);
+        // Create unique index on rule_os if it doesn't exist
+        await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_rule_os_rule_osType" ON "rule_os" ("rule_id", "osType")`);
 
-        // Insert default rule fields
+        // Insert default rule fields (using ON CONFLICT DO NOTHING to handle duplicates)
         await queryRunner.query(`
             INSERT INTO "rule_fields" ("name", "type", "label", "description") VALUES
             ('$.battery.level', 'number', 'Battery Level', 'Device battery level percentage'),
@@ -119,7 +126,33 @@ export class CreateRulesTables1765200000000 implements MigrationInterface {
             ('$.os.version', 'string', 'OS Version', 'Operating system version'),
             ('$.location.latitude', 'number', 'Latitude', 'Device location latitude'),
             ('$.location.longitude', 'number', 'Longitude', 'Device location longitude'),
-            ('$.device.type', 'string', 'Device Type', 'Type of device')
+            ('$.device.type', 'string', 'Device Type', 'Type of device'),
+            ('$.device.any', 'boolean', 'Any Device', 'When set to true, policy evaluation will pass regardless of other conditions. Use this to display components without special checks.')
+            ON CONFLICT ("name") DO NOTHING
+        `);
+
+        // Insert default "Allow All Devices" policy rule (using ON CONFLICT DO NOTHING)
+        await queryRunner.query(`
+            INSERT INTO "rules" ("id", "name", "description", "type", "version", "isActive", "rule")
+            VALUES (
+                '${DEFAULT_ALLOW_ALL_DEVICES_RULE_ID}',
+                '${DEFAULT_ALLOW_ALL_DEVICES_RULE_NAME}',
+                'Default policy that allows all devices to download a component. This rule is automatically applied to all existing and new releases unless manually removed.',
+                'policy',
+                1,
+                true,
+                '{"all": [{"fact": "$.device.any", "operator": "equal", "value": true}]}'::jsonb
+            )
+            ON CONFLICT ("id") DO NOTHING
+        `);
+
+        // Link default rule to all existing eleases (using ON CONFLICT DO NOTHING)
+        await queryRunner.query(`
+            INSERT INTO "rule_releases" ("rule_id", "release_catalog_id")
+            SELECT '${DEFAULT_ALLOW_ALL_DEVICES_RULE_ID}', "catalog_id"
+            FROM "release"
+            WHERE "catalog_id" IS NOT NULL
+            ON CONFLICT ("rule_id", "release_catalog_id") DO NOTHING
         `);
     }
 

@@ -4,3 +4,4 @@ export * from './services/rule-validation.service';
 export * from './dto';
 export * from './types/rule.types';
 export * from './enums/rule.enums';
+export * from './constants';
