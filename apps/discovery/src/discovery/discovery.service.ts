@@ -8,11 +8,15 @@ import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
 import { DeviceService } from '../device/device.service';
 import { DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { ComponentV2Dto } from '@app/common/dto/upload';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { PendingVersionService } from '../pending-version/pending-version.service';
 import { AppError, ErrorCode } from '@app/common/dto/error';
+import { RuleService } from '@app/common/rules/services';
+import { RuleType } from '@app/common/rules/enums/rule.enums';
+import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
+import { UploadTopicsEmit } from '@app/common/microservice-client/topics';
 
 @Injectable()
 export class DiscoveryService {
@@ -28,7 +32,9 @@ export class DiscoveryService {
     private readonly deviceService: DeviceService,
     private readonly deviceRepoService: DeviceRepoService,
     private readonly dataSource: DataSource,
+    private readonly ruleService: RuleService,
     private readonly pendingVersionService: PendingVersionService,
+    @Inject(MicroserviceName.UPLOAD_SERVICE) private readonly uploadClient: MicroserviceClient,
   ) {
   }
 
@@ -135,7 +141,7 @@ export class DiscoveryService {
     device.IP = dto.general?.physicalDevice?.IP;
     device.formations = dto?.softwareData?.formations;
 
-    device.platform = dto.platform ? await this.getPlatformByToken(dto.platform.token) ?? undefined : null;
+    device.platform = dto.platform ? (await this.getPlatformByToken(dto.platform.token)) ?? undefined : undefined;
     device.deviceType = [];
                       
     // Only device there is no of type platform, can be a device children
@@ -186,7 +192,7 @@ export class DiscoveryService {
     }
   }
 
-  async discoveryDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity) {
+  async discoveryDeviceContext(dto: DiscoveryMessageV2Dto, parent?: DeviceEntity): Promise<DiscoveryMessageV2Dto> {
 
     this.logger.log(`Save discover mes for device ${dto.id}`);
 
@@ -224,9 +230,26 @@ export class DiscoveryService {
       }
     }
 
-    if (dto.platform?.devices?.length) {
-      dto.platform.devices.forEach(d => this.discoveryDeviceContext(d, device))
+    // Send supported fields to upload microservice for syncing with database
+    if (!parent && device.ID && dto.supportedFields && dto.supportedFields.length > 0) {
+      try {
+        this.logger.debug(`Sending ${dto.supportedFields.length} supported field(s) from device ${device.ID} to upload microservice`);
+        this.uploadClient.emit(UploadTopicsEmit.SYNC_DEVICE_RULE_FIELDS, {
+          deviceId: device.ID,
+          fields: dto.supportedFields,
+        });
+      } catch (err) {
+        this.logger.error(`Failed to send device fields to upload microservice for device ${device.ID}: ${err}`);
+      }
     }
+
+    if (dto.platform?.devices?.length) {
+      for (const d of dto.platform.devices) {
+        await this.discoveryDeviceContext(d, device);
+      }
+    }
+
+    return dto;
   }
 
   async discoveryMessage(discovery: DiscoveryMessageDto) {
@@ -508,5 +531,84 @@ export class DiscoveryService {
       dm.mTlsStatus = mTlsStatus.status
     dm.discoveryType = DiscoveryType.MTLS
     this.discoveryMessageRepo.save(dm);
+  }
+
+  /**
+   * Collects all applicable restrictions for a device based on:
+   * - Device ID
+   * - Device Type(s)
+   * - OS Type
+   */
+  async getRestrictionsForDevice(deviceId: string): Promise<any[]> {
+    this.logger.log(`Getting restrictions for device ${deviceId}`);
+
+    try {
+      // Get the device with its types and platform info
+      const device = await this.deviceRepo.findOne({
+        where: { ID: deviceId },
+        relations: ['deviceType', 'platform'],
+      });
+
+      if (!device) {
+        this.logger.warn(`Device ${deviceId} not found`);
+        return [];
+      }
+
+      // Extract device type names
+      const deviceTypeNames = device.deviceType?.map(dt => dt.name) || [];
+      
+      // Get OS type from the platform or device info (you may need to adjust this based on your data structure)
+      // For now, we'll query by device ID and device types. OS can be added if available.
+      const osType = device.platform?.name; // Adjust this based on where OS info is stored
+
+      // Collect all restrictions
+      const allRestrictions: any[] = [];
+
+      // 1. Get restrictions by device ID
+      if (deviceId) {
+        const deviceQuery = {
+          type: RuleType.RESTRICTION,
+          isActive: true,
+          deviceId: deviceId,
+        };
+        const deviceRestrictions = await this.ruleService.findAll(deviceQuery);
+        allRestrictions.push(...deviceRestrictions);
+      }
+
+      // 2. Get restrictions by device types
+      for (const typeName of deviceTypeNames) {
+        const typeQuery = {
+          type: RuleType.RESTRICTION,
+          isActive: true,
+          deviceTypeName: typeName,
+        };
+        const typeRestrictions = await this.ruleService.findAll(typeQuery);
+        allRestrictions.push(...typeRestrictions);
+      }
+
+      // 3. Get restrictions by OS type (if available)
+      if (osType) {
+        const osQuery = {
+          type: RuleType.RESTRICTION,
+          isActive: true,
+          osType: osType,
+        };
+        const osRestrictions = await this.ruleService.findAll(osQuery);
+        allRestrictions.push(...osRestrictions);
+      }
+
+      // Remove duplicates based on rule ID
+      const uniqueRestrictions = Array.from(
+        new Map(allRestrictions.map(rule => [rule.id, rule])).values()
+      );
+
+      this.logger.debug(`Found ${uniqueRestrictions.length} unique restriction(s) for device ${deviceId}`);
+
+      // Convert to RuleDefinition format
+      return uniqueRestrictions.map(rule => this.ruleService.ruleEntityToDefinition(rule));
+    } catch (err: any) {
+      this.logger.error(`Error getting restrictions for device ${deviceId}: ${err.message}`);
+      return [];
+    }
   }
 }

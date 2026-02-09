@@ -692,10 +692,16 @@ export class OidcRolesService implements OnModuleInit {
     let skippedCount = 0;
 
     for (const role of allRoles) {
-      const description = ROLE_DESCRIPTIONS[role] || `Role: ${role}`;
+      const description = ROLE_DESCRIPTIONS[role];
+      
+      if (!description) {
+        this.logger.warn(`   ⚠️  Missing description for role: ${role} - using default`);
+      }
+      
+      const finalDescription = description || `Role: ${role}`;
 
       try {
-        const created = await this.createRole(role, description);
+        const created = await this.createRole(role, finalDescription);
         if (created) {
           this.logger.log(`   ✅ Created: ${role}`);
           createdCount++;

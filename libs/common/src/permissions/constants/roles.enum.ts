@@ -46,9 +46,16 @@ export enum ApiRole {
   UPDATE_RELEASE = 'update-release',
 
   /**
+   * Permission to edit imported releases that are in released status
+   * This is a special permission for users who can modify imported releases
+   */
+  EDIT_IMPORTED_RELEASE = 'edit-imported-release',
+
+  /**
    * Permission to delete releases
    */
   DELETE_RELEASE = 'delete-release',
+
 
   /**
    * Permission to push/deploy releases
@@ -123,7 +130,7 @@ export enum ApiRole {
    */
   LINK_PROJECT_DEVICE_TYPE = 'link-project-device-type',
 
-  /**
+   /**
    * Permission to view offerings
    */
   VIEW_OFFERING = 'view-offering',
@@ -180,6 +187,57 @@ export enum ApiRole {
    * Permission to view system configuration
    */
   VIEW_CONFIG = 'view-config',
+
+  // ========== POLICIES & RULES MANAGEMENT ==========
+  /**
+   * Permission to create policies (release-associated rules)
+   */
+  CREATE_POLICY = 'create-policy',
+
+  /**
+   * Permission to view policy details
+   */
+  VIEW_POLICY = 'view-policy',
+
+  /**
+   * Permission to update existing policies
+   */
+  UPDATE_POLICY = 'update-policy',
+
+  /**
+   * Permission to delete policies
+   */
+  DELETE_POLICY = 'delete-policy',
+
+  /**
+   * Permission to list/browse all policies
+   */
+  LIST_POLICIES = 'list-policies',
+
+  /**
+   * Permission to create restrictions (device-associated rules)
+   */
+  CREATE_RESTRICTION = 'create-restriction',
+
+  /**
+   * Permission to view restriction details
+   */
+  VIEW_RESTRICTION = 'view-restriction',
+
+  /**
+   * Permission to update existing restrictions
+   */
+  UPDATE_RESTRICTION = 'update-restriction',
+
+  /**
+   * Permission to delete restrictions
+   */
+  DELETE_RESTRICTION = 'delete-restriction',
+
+  /**
+   * Permission to list/browse all restrictions
+   */
+  LIST_RESTRICTIONS = 'list-restrictions',
 
   // ========== SPECIAL STAMP ==========
   /**

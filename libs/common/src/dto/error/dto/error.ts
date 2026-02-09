@@ -20,6 +20,7 @@ export enum ErrorCode {
 
   // project management
   PM_OTHER = 'PROJECT_MANAGEMENT.unknown',
+  PM_DELETE_PROJECT_FAILED = 'PROJECT_MANAGEMENT.deleteProjectFailed',
   PM_LABEL_NOT_FOUND = 'PROJECT_MANAGEMENT.labelNotFound',
   PM_LABEL_ALREADY_EXISTS = 'PROJECT_MANAGEMENT.labelAlreadyExists',
   PM_LABEL_IN_USE = 'PROJECT_MANAGEMENT.labelInUse',
@@ -51,6 +52,12 @@ export enum ErrorCode {
   GROUP_ORG_ID_CONFLICT = "GROUP.orgIdConflict",
   GROUP_ORG_ID_NOT_FOUND = "GROUP.orgIdNotFound",
 
+  // rules
+  RULE_VALIDATION_FAILED = "RULE.validationFailed",
+  RULE_FIELD_NOT_SUPPORTED = "RULE.fieldNotSupported",
+  RULE_FIELD_ALREADY_EXISTS = "RULE.fieldAlreadyExists",
+  RULE_FIELD_NOT_FOUND = "RULE.fieldNotFound",
+
   // releases
   RELEASE_HAS_DEPENDENTS = "RELEASE.hasDependents",
 }
@@ -72,6 +79,7 @@ export class ErrorDto {
       "`DELIVERY.unableClearCache`:  Some issue occurs when trying to clear cache <br /> " +
 
       "`PROJECT_MANAGEMENT.unknown`: Error code not listed in the enum <br /> " +
+      "`PROJECT_MANAGEMENT.deleteProjectFailed`: Failed to delete the project <br /> " +
       "`PROJECT_MANAGEMENT.labelNotFound`: Label with the given id or name was not found <br /> " +
       "`PROJECT_MANAGEMENT.labelAlreadyExists`: Label with the given name already exists <br /> " +
       "`PROJECT_MANAGEMENT.labelInUse`: Label cannot be deleted as it is being used by projects <br /> " +
@@ -88,6 +96,7 @@ export class ErrorDto {
 
 
       "`DEVICE.notFound`: Device with given id not found.<br/>" +
+      "`DEVICE.hasChildren`: Device has child devices and cannot be deleted.<br/>" +
       "`DEVICE.hasChildren`: Cannot delete device because it has child devices.<br/>" +
       "`DEVICE_DT_NOT_FOUND`: Device type with given id not found.<br/>" +
       "`DEVICE_DT_ALREADY_EXISTS`: Device type with given name already exists.<br/>" +
@@ -100,6 +109,11 @@ export class ErrorDto {
       "`GROUP.orgIdNotAllowed`: Organization ID is not allowed to be used, see message for cause.<br/>" +
       "`GROUP.orgIdConflict`: Organization ID conflict occurred.<br/>" +
       "`GROUP.orgIdNotFound`: Organization ID not found.<br/>" +
+
+      "`RULE.validationFailed`: Rule validation against rule engine failed.<br/>" +
+      "`RULE.fieldNotSupported`: One or more fields in the rule are not supported.<br/>" +
+      "`RULE.fieldAlreadyExists`: Rule field with the given name already exists.<br/>" +
+      "`RULE.fieldNotFound`: Rule field with the given name was not found.<br/>" +
 
       "`RELEASE.hasDependents`: Cannot delete release because other releases depend on it.",
     required: false
