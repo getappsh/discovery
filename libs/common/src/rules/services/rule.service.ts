@@ -285,11 +285,14 @@ export class RuleService {
 
     // Device type associations (for restrictions)
     if (association.deviceTypeNames && association.deviceTypeNames.length > 0) {
+      const uniqueDeviceTypeNames = [...new Set(association.deviceTypeNames)];
+      this.logger.debug(`Creating associations for ${uniqueDeviceTypeNames.length} unique device type(s)`);
+      
       const deviceTypes = await this.deviceTypeRepository.find({
-        where: { name: In(association.deviceTypeNames) },
+        where: { name: In(uniqueDeviceTypeNames) },
       });
 
-      if (deviceTypes.length !== association.deviceTypeNames.length) {
+      if (deviceTypes.length !== uniqueDeviceTypeNames.length) {
         throw new BadRequestException('One or more device types not found');
       }
 
@@ -301,11 +304,14 @@ export class RuleService {
 
     // Device associations (for restrictions)
     if (association.deviceIds && association.deviceIds.length > 0) {
+      const uniqueDeviceIds = [...new Set(association.deviceIds)];
+      this.logger.debug(`Creating associations for ${uniqueDeviceIds.length} unique device(s)`);
+      
       const devices = await this.deviceRepository.find({
-        where: { ID: In(association.deviceIds) },
+        where: { ID: In(uniqueDeviceIds) },
       });
 
-      if (devices.length !== association.deviceIds.length) {
+      if (devices.length !== uniqueDeviceIds.length) {
         throw new BadRequestException('One or more devices not found');
       }
 
@@ -317,7 +323,10 @@ export class RuleService {
 
     // OS associations (for restrictions)
     if (association.osTypes && association.osTypes.length > 0) {
-      const ruleOsList = association.osTypes.map(osType =>
+      const uniqueOsTypes = [...new Set(association.osTypes as string[])] as string[];
+      this.logger.debug(`Creating associations for ${uniqueOsTypes.length} unique OS type(s)`);
+      
+      const ruleOsList = uniqueOsTypes.map((osType: string) =>
         this.ruleOsRepository.create({ rule, osType }),
       );
       await this.ruleOsRepository.save(ruleOsList);
