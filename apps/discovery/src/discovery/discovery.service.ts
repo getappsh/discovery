@@ -135,6 +135,10 @@ export class DiscoveryService {
 
     device.name = dto.general?.personalDevice?.name;
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
+    device.availableStorage = dto.general?.situationalDevice?.availableStorage;
+    device.OS = dto.general?.physicalDevice?.OS;
+    device.MAC = dto.general?.physicalDevice?.MAC;
+    device.IP = dto.general?.physicalDevice?.IP;
     device.formations = dto?.softwareData?.formations;
 
     device.platform = dto.platform ? (await this.getPlatformByToken(dto.platform.token)) ?? undefined : undefined;
@@ -200,6 +204,7 @@ export class DiscoveryService {
     dm.discoveryType = dto.discoveryType
     dm.personalDevice = dto.general?.personalDevice;
     dm.situationalDevice = dto.general?.situationalDevice;
+    dm.metaData = dto.general?.metaData;
     dm.discoveryData = dto.softwareData;
     dm.device = device
 
