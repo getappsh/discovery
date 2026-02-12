@@ -407,6 +407,9 @@ export class DiscoveryService implements OnModuleInit {
 
     const normalizedCompsCatalogId = compsCatalogId.map(normalizeId);
 
+    // Get all pending versions previously reported by this device
+    const previousPendingVersions = await this.pendingVersionService.getPendingVersionsForDevice(deviceId);
+
     let deviceComps: DeviceComponentStateDto[] = []
 
     // Find the registered components of the device, and set as uninstall if they are not in the list
@@ -517,6 +520,40 @@ export class DiscoveryService implements OnModuleInit {
         ).catch(err => {
           this.logger.error(`Failed to record pending version ${catalogId}: ${err.message}`);
         });
+      }
+    }
+
+    // Remove device from pending versions that are no longer being reported
+    if (previousPendingVersions.length > 0) {
+      // Build a set of currently reported unknown version identifiers (projectName@version)
+      const currentUnknownVersionIds = new Set(
+        unknownVersions.map(comp => {
+          const [namePart, version] = comp.catalogId.split("@");
+          const projectName = namePart?.split('.').pop() || namePart;
+          return `${projectName}@${version}`;
+        })
+      );
+
+      // Check each previously reported pending version
+      for (const prevPending of previousPendingVersions) {
+        const versionId = `${prevPending.projectName}@${prevPending.version}`;
+        
+        // If this version is no longer in the current unknown versions, remove the device
+        if (!currentUnknownVersionIds.has(versionId)) {
+          this.logger.log(
+            `Device ${deviceId} no longer reporting pending version ${versionId}, removing from reportingDeviceIds`
+          );
+          
+          this.pendingVersionService.removeDeviceFromPendingVersion(
+            prevPending.projectName,
+            prevPending.version,
+            deviceId
+          ).catch(err => {
+            this.logger.error(
+              `Failed to remove device ${deviceId} from pending version ${versionId}: ${err.message}`
+            );
+          });
+        }
       }
     }
 
