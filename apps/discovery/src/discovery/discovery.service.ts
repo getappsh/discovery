@@ -319,28 +319,49 @@ export class DiscoveryService implements OnModuleInit {
     this.logger.debug(`Found ${zeroIdComponents.length} component(s) with project ID 0, attempting to resolve`);
 
     try {
-      // Get all projects from project-management (single call for efficiency)
-      const projects = await lastValueFrom(
-        this.projectManagementClient.send(ProjectManagementTopics.GET_PROJECTS, {})
-      );
-      
-      if (!projects || projects.length === 0) {
-        this.logger.debug(`No projects found, components with ID 0 will be recorded as pending versions`);
+      // Extract unique project names from zeroIdComponents to optimize the query
+      const projectNames = new Set<string>();
+      for (const comp of zeroIdComponents) {
+        const [namePart] = comp.catalogId.split("@");
+        const projectName = namePart.split('.').pop(); // Get the name part after '0.'
+        if (projectName && projectName !== '0') {
+          projectNames.add(projectName);
+        }
+      }
+
+      if (projectNames.size === 0) {
+        this.logger.debug(`No valid project names extracted from zero ID components`);
         return;
       }
 
-      // Build a map of namespace -> project name for quick lookup
-      const namespaceToProjectMap = new Map<string, string>();
+      // Get only projects matching these names from project-management
+      const response = await lastValueFrom(
+        this.projectManagementClient.send(ProjectManagementTopics.GET_PROJECTS, {
+          projectNames: Array.from(projectNames)
+        })
+      );
+      
+      // Handle both array response and paginated response
+      const projects = Array.isArray(response) ? response : (response?.data || []);
+      
+      if (!projects || projects.length === 0) {
+        this.logger.debug(`No projects found for names [${Array.from(projectNames).join(', ')}], components with ID 0 will be recorded as pending versions`);
+        return;
+      }
+
+      // Build a map of project name -> project ID for quick lookup
+      const nameToIdMap = new Map<string, number>();
       
       for (const project of projects) {
         const projectName = project.name || project.projectName;
-        const namespace = project.namespace || '';
+        const projectId = project.id;
         
-        // Store with namespace as key (empty string if no namespace)
-        namespaceToProjectMap.set(namespace, projectName);
+        if (projectName && projectId) {
+          nameToIdMap.set(projectName, projectId);
+        }
       }
 
-      // Replace project ID 0 with the correct project name based on namespace match
+      // Replace project ID 0 with the correct project ID based on name match
       for (const comp of zeroIdComponents) {
         const [namePart, version] = comp.catalogId.split("@");
         
@@ -348,23 +369,23 @@ export class DiscoveryService implements OnModuleInit {
           continue;
         }
 
-        // Extract namespace (everything before the last dot, if any)
-        const parts = namePart.split('.');
-        const namespace = parts.length > 1 ? parts.slice(0, -1).join('.') : '';
+        const projectName = namePart.split('.').pop();
         
-        // Find matching project by namespace
-        const projectName = namespaceToProjectMap.get(namespace);
+        if (!projectName) {
+          continue;
+        }
         
-        if (projectName) {
-          const newCatalogId = namespace 
-            ? `${namespace}.${projectName}@${version}`
-            : `${projectName}@${version}`;
+        // Find matching project by name
+        const projectId = nameToIdMap.get(projectName);
+        
+        if (projectId) {
+          const newCatalogId = `${projectId}.${projectName}@${version}`;
           
           this.logger.log(`Resolved ${comp.catalogId} to ${newCatalogId}`);
           comp.catalogId = newCatalogId;
         } else {
           this.logger.debug(
-            `No matching project found for namespace '${namespace}' in ${comp.catalogId}, ` +
+            `No matching project found for name '${projectName}' in ${comp.catalogId}, ` +
             `will be recorded as pending version`
           );
         }
