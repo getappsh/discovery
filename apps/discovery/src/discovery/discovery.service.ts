@@ -329,9 +329,18 @@ export class DiscoveryService implements OnModuleInit {
         return;
       }
 
-      // Group components by namespace and version for batch processing
-      const versionMap = new Map<string, { namespace: string; components: ComponentStateDto[] }>();
+      // Build a map of namespace -> project name for quick lookup
+      const namespaceToProjectMap = new Map<string, string>();
       
+      for (const project of projects) {
+        const projectName = project.name || project.projectName;
+        const namespace = project.namespace || '';
+        
+        // Store with namespace as key (empty string if no namespace)
+        namespaceToProjectMap.set(namespace, projectName);
+      }
+
+      // Replace project ID 0 with the correct project name based on namespace match
       for (const comp of zeroIdComponents) {
         const [namePart, version] = comp.catalogId.split("@");
         
@@ -343,66 +352,21 @@ export class DiscoveryService implements OnModuleInit {
         const parts = namePart.split('.');
         const namespace = parts.length > 1 ? parts.slice(0, -1).join('.') : '';
         
-        if (!versionMap.has(version)) {
-          versionMap.set(version, { namespace, components: [] });
-        }
-        versionMap.get(version)!.components.push(comp);
-      }
-
-      // For each version, query all projects to find releases matching that version
-      for (const [version, data] of versionMap) {
-        try {
-          // Query releases for each project to find matching version
-          const releasePromises = projects.map(async (project: any) => {
-            try {
-              const projectName = project.name || project.projectName;
-              const releases: ReleaseDto[] = await lastValueFrom(
-                this.uploadClient.send(UploadTopics.GET_RELEASES, { projectIdentifier: projectName })
-              );
-              
-              // Find release with matching version
-              const matchingRelease = releases.find(r => r.version === version);
-              
-              if (matchingRelease) {
-                // Check if namespace matches
-                const [relNamePart] = matchingRelease.id.split("@");
-                const relParts = relNamePart.split('.');
-                const relNamespace = relParts.length > 1 ? relParts.slice(0, -1).join('.') : '';
-                
-                if (relNamespace === data.namespace) {
-                  return matchingRelease;
-                }
-              }
-              return null;
-            } catch (err) {
-              return null;
-            }
-          });
+        // Find matching project by namespace
+        const projectName = namespaceToProjectMap.get(namespace);
+        
+        if (projectName) {
+          const newCatalogId = namespace 
+            ? `${namespace}.${projectName}@${version}`
+            : `${projectName}@${version}`;
           
-          const foundReleases = (await Promise.all(releasePromises)).filter(r => r !== null);
-          
-          if (foundReleases.length === 1) {
-            // Unique match found, update all components with this version
-            const correctCatalogId = foundReleases[0].id;
-            this.logger.log(`Resolved version ${version} with namespace "${data.namespace}" to ${correctCatalogId}`);
-            
-            for (const comp of data.components) {
-              comp.catalogId = correctCatalogId;
-            }
-          } else if (foundReleases.length > 1) {
-            this.logger.warn(
-              `Multiple releases found for version ${version} with namespace "${data.namespace}": ` +
-              `${foundReleases.map(r => r.id).join(', ')}. Cannot auto-resolve, will be recorded as pending version.`
-            );
-          } else {
-            this.logger.debug(
-              `No matching release found for version ${version} with namespace "${data.namespace}", ` +
-              `will be recorded as pending version`
-            );
-          }
-          
-        } catch (err) {
-          this.logger.error(`Error resolving version ${version}: ${err}`);
+          this.logger.log(`Resolved ${comp.catalogId} to ${newCatalogId}`);
+          comp.catalogId = newCatalogId;
+        } else {
+          this.logger.debug(
+            `No matching project found for namespace '${namespace}' in ${comp.catalogId}, ` +
+            `will be recorded as pending version`
+          );
         }
       }
     } catch (err) {
