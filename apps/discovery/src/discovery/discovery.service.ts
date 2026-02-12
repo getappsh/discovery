@@ -308,7 +308,7 @@ export class DiscoveryService implements OnModuleInit {
   private async fixZeroProjectIds(components: ComponentStateDto[]): Promise<void> {
     const zeroIdComponents = components.filter(comp => {
       const [namePart] = comp.catalogId.split("@");
-      const projectIdentifier = namePart?.split('.').pop() || namePart;
+      const projectIdentifier = namePart?.split('.')[0] || namePart;
       return projectIdentifier === '0';
     });
 
