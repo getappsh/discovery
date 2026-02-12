@@ -8,7 +8,7 @@ import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
 import { DeviceService } from '../device/device.service';
 import { DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { ComponentV2Dto } from '@app/common/dto/upload';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { PendingVersionService } from '../pending-version/pending-version.service';
@@ -21,7 +21,7 @@ import { lastValueFrom } from 'rxjs';
 import { ReleaseDto } from '@app/common/dto/upload';
 
 @Injectable()
-export class DiscoveryService {
+export class DiscoveryService implements OnModuleInit {
   private readonly logger = new Logger(DiscoveryService.name);
 
   constructor(
@@ -38,6 +38,23 @@ export class DiscoveryService {
     @Inject(MicroserviceName.UPLOAD_SERVICE) private readonly uploadClient: MicroserviceClient,
     @Inject(MicroserviceName.PROJECT_MANAGEMENT_SERVICE) private readonly projectManagementClient: MicroserviceClient,
   ) {
+  }
+
+  async onModuleInit() {
+    // Subscribe to response topics for Kafka request-response pattern
+    this.uploadClient.subscribeToResponseOf([
+      UploadTopics.GET_RELEASES,
+    ]);
+    this.projectManagementClient.subscribeToResponseOf([
+      ProjectManagementTopics.GET_PROJECTS,
+    ]);
+    
+    await Promise.all([
+      this.uploadClient.connect(),
+      this.projectManagementClient.connect(),
+    ]);
+    
+    this.logger.log('DiscoveryService initialized and connected to microservices');
   }
 
   async getDevicePerson(deviceId: string): Promise<(Pick<DiscoveryMessageEntity, "personalDevice"> & { device: Pick<DeviceEntity, "ID">; }) | undefined | null> {
