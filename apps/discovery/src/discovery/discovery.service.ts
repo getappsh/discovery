@@ -133,6 +133,13 @@ export class DiscoveryService {
     // Wrap dto.snapshotDate in Date, as microservice data loses type.
     if (parent && device.lastConnectionDate && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
 
+    // Update physical device properties (OS, MAC, etc.) only if they are present in the DTO
+    if (dto.general?.physicalDevice) {
+      Object.assign(device, Object.fromEntries(
+        Object.entries(dto.general.physicalDevice).filter(([_, v]) => v != null)
+      ));
+    }
+
     device.name = dto.general?.personalDevice?.name;
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.availableStorage = dto.general?.situationalDevice?.availableStorage;
