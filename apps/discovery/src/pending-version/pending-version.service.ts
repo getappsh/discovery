@@ -391,4 +391,52 @@ export class PendingVersionService implements OnModuleInit {
 
     return pendingVersions;
   }
+
+  /**
+   * Remove a device from a pending version's reportingDeviceIds
+   * If no devices remain, delete the pending version entirely
+   */
+  async removeDeviceFromPendingVersion(
+    projectName: string,
+    version: string,
+    deviceId: string
+  ): Promise<void> {
+    this.logger.log(`Removing device ${deviceId} from pending version: ${projectName}@${version}`);
+
+    try {
+      const pendingVersion = await this.pendingVersionRepo.findOne({
+        where: { projectName, version, status: PendingVersionStatus.PENDING }
+      });
+
+      if (!pendingVersion) {
+        this.logger.debug(`Pending version ${projectName}@${version} not found or not in PENDING status`);
+        return;
+      }
+
+      // Remove device from reportingDeviceIds array
+      const deviceIndex = pendingVersion.reportingDeviceIds.indexOf(deviceId);
+      if (deviceIndex === -1) {
+        this.logger.debug(`Device ${deviceId} not found in pending version ${projectName}@${version}`);
+        return;
+      }
+
+      pendingVersion.reportingDeviceIds.splice(deviceIndex, 1);
+      pendingVersion.reportedCount = pendingVersion.reportingDeviceIds.length;
+
+      if (pendingVersion.reportingDeviceIds.length === 0) {
+        // No devices left reporting this version, delete the pending version
+        await this.pendingVersionRepo.remove(pendingVersion);
+        this.logger.log(`Deleted pending version ${projectName}@${version} - no reporting devices remain`);
+      } else {
+        // Update the pending version with new device list
+        await this.pendingVersionRepo.save(pendingVersion);
+        this.logger.log(
+          `Removed device ${deviceId} from pending version ${projectName}@${version}, ` +
+          `${pendingVersion.reportedCount} device(s) still reporting`
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Error removing device from pending version: ${error.message}`, error.stack);
+    }
+  }
 }
