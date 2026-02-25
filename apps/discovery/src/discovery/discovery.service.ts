@@ -152,13 +152,13 @@ export class DiscoveryService implements OnModuleInit {
     // Wrap dto.snapshotDate in Date, as microservice data loses type.
     if (parent && device.lastConnectionDate && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
 
-    device.name = dto.general?.personalDevice?.name;
+    device.name = dto.general?.personalDevice?.name ?? device.name;
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
-    device.availableStorage = dto.general?.situationalDevice?.availableStorage;
-    device.OS = dto.general?.physicalDevice?.OS;
-    device.MAC = dto.general?.physicalDevice?.MAC;
-    device.IP = dto.general?.physicalDevice?.IP;
-    device.formations = dto?.softwareData?.formations;
+    device.availableStorage = dto.general?.situationalDevice?.availableStorage ?? device.availableStorage;
+    device.OS = dto.general?.physicalDevice?.OS ?? device.OS;
+    device.MAC = dto.general?.physicalDevice?.MAC ?? device.MAC;
+    device.IP = dto.general?.physicalDevice?.IP ?? device.IP;
+    device.formations = dto?.softwareData?.formations ?? device.formations;
 
     device.platform = dto.platform ? (await this.getPlatformByToken(dto.platform.token)) ?? undefined : undefined;
     device.deviceType = [];
