@@ -19,4 +19,18 @@ export class OSService {
       }
     });
   }
+
+  async ensureOSExists(osName: string): Promise<void> {
+    const id = osName.trim().toLowerCase().substring(0, 50);
+    const exists = await this.osRepo.findOne({ where: { id } });
+    if (!exists) {
+      try {
+        await this.osRepo.insert({ id, name: osName.trim() });
+        this.logger.log(`Added new OS to os table: '${osName}'`);
+      } catch (err) {
+        // Ignore duplicate key errors (race condition between concurrent requests)
+        this.logger.debug(`OS '${osName}' already exists or insert failed: ${err}`);
+      }
+    }
+  }
 }
