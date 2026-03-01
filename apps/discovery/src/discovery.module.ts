@@ -7,7 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DiscoveryController } from './discovery/discovery.controller';
 import { DiscoveryService } from './discovery/discovery.service';
 import { DiscoveryService as DiscoveryServiceMain } from './discovery.service';
-import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity, PendingVersionEntity , DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity } from '@app/common/database/entities';
+import { BugReportEntity, DeviceEntity, DeviceMapStateEntity, OrgGroupEntity, MapEntity, UploadVersionEntity, OrgUIDEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity, ProjectEntity, MemberProjectEntity, PendingVersionEntity , DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity, OSEntity } from '@app/common/database/entities';
 import { MicroserviceModule, MicroserviceName, MicroserviceType } from '@app/common/microservice-client';
 import { GroupController } from './group/group.controller';
 import { GroupService } from './group/group.service';
@@ -31,6 +31,8 @@ import { RestrictionsController } from './restrictions/restrictions.controller';
 import { RestrictionsService } from './restrictions/restrictions.service';
 import { PendingVersionController } from './pending-version/pending-version.controller';
 import { PendingVersionService } from './pending-version/pending-version.service';
+import { OSController } from './os/os.controller';
+import { OSService } from './os/os.service';
 
 @Module({
   imports: [
@@ -56,7 +58,7 @@ import { PendingVersionService } from './pending-version/pending-version.service
     RuleModule,
     TypeOrmModule.forFeature([
       DiscoveryMessageEntity, DeviceEntity, MapEntity,
-       OrgGroupEntity,OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity,
+       OrgGroupEntity, OrgUIDEntity, DeviceMapStateEntity, BugReportEntity, ProjectEntity, MemberProjectEntity, OSEntity,
         DeviceConfigEntity, JobsEntity, DeviceComponentEntity, ReleaseEntity, PlatformEntity, DeviceTypeEntity,
         PendingVersionEntity, DeliveryStatusEntity, DeployStatusEntity, ComponentOfferingEntity, MapOfferingEntity
       ]),
@@ -66,8 +68,8 @@ import { PendingVersionService } from './pending-version/pending-version.service
       useClass: UploadJwtConfigService
     }),
   ],
-  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, RestrictionsController, PendingVersionController],
-  providers: [DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, RestrictionsService, PendingVersionService,
+  controllers: [DiscoveryController, GroupController, DeviceController, BugReportController, HierarchyController, RestrictionsController, PendingVersionController, OSController],
+  providers: [DiscoveryServiceMain, DiscoveryService, GroupService, DeviceService, BugReportService, S3Service, DeviceConfigService, HierarchyService, RestrictionsService, PendingVersionService, OSService,
     {
       provide: PROJECT_ACCESS_SERVICE,
       useExisting: HierarchyService
