@@ -491,6 +491,13 @@ export class DeviceService {
       })
     );
 
+    // Fetch component_offering records for this device to get the action (offering/push) per release
+    const componentOfferingsPromise = this.componentOfferingRepo.find({
+      where: { device: { ID: deviceId } },
+      relations: { release: true },
+      select: { release: { catalogId: true }, action: true },
+    });
+
     let deviceDto = (await this.deviceToDevicesDto([device]))[0] || {} as DeviceDto;
 
     const res = DeviceSoftwareDto.fromDeviceComponentsEntity(device.components, deviceDto);
@@ -498,9 +505,22 @@ export class DeviceService {
     // Add pending versions
     await this.addPendingVersionsToDeviceSoftware(deviceId, res);
 
+    // Enrich softwares with the component_offering action
+    const componentOfferings = await componentOfferingsPromise;
+    const actionByCatalogId = new Map(componentOfferings.map(co => [co.release.catalogId, co.action]));
+    for (const sw of res.softwares) {
+      const catalogId = sw.software?.id;
+      if (catalogId && actionByCatalogId.has(catalogId)) {
+        sw.action = actionByCatalogId.get(catalogId);
+      }
+    }
+
     // Await the offerByDeviceType only before return (if needed)
     const offerByDeviceType = await offerByDeviceTypePromise;
-    // Collect all additional software offerings from the device type offerings
+    // Collect additional software offerings from device-type rules.
+    // These are appended AFTER the action-enrichment loop above intentionally:
+    // device-type offerings don't have a per-device ComponentOffering record,
+    // so they should not carry an action (no unpush available for them).
     const additionalSoftwares: SoftwareStateDto[] = offerByDeviceType
       .flatMap(offer =>
         (offer.projects ?? [])
