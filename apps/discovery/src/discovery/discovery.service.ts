@@ -12,6 +12,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { PendingVersionService } from '../pending-version/pending-version.service';
+import { OSService } from '../os/os.service';
 import { AppError, ErrorCode } from '@app/common/dto/error';
 import { RuleService } from '@app/common/rules/services';
 import { RuleType } from '@app/common/rules/enums/rule.enums';
@@ -37,6 +38,7 @@ export class DiscoveryService implements OnModuleInit {
     private readonly pendingVersionService: PendingVersionService,
     @Inject(MicroserviceName.UPLOAD_SERVICE) private readonly uploadClient: MicroserviceClient,
     @Inject(MicroserviceName.PROJECT_MANAGEMENT_SERVICE) private readonly projectManagementClient: MicroserviceClient,
+    private readonly osService: OSService,
   ) {
   }
 
@@ -156,6 +158,13 @@ export class DiscoveryService implements OnModuleInit {
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.availableStorage = dto.general?.situationalDevice?.availableStorage;
     device.OS = dto.general?.physicalDevice?.OS;
+    try{
+    if (device.OS) {
+      await this.osService.ensureOSExists(device.OS);
+    }
+    } catch (err) {
+      this.logger.error(`Error ensuring OS exists: ${err}`);
+    }
     device.MAC = dto.general?.physicalDevice?.MAC;
     device.IP = dto.general?.physicalDevice?.IP;
     device.formations = dto?.softwareData?.formations;
