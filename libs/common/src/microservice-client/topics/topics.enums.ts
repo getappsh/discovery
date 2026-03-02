@@ -224,6 +224,8 @@ export const DeviceTopics = {
     LIST_PENDING_VERSIONS: `getapp-device.pending-versions.list${region}`,
     // Device Restrictions
     GET_DEVICE_RESTRICTIONS: `getapp-device.get-device-restrictions${region}`,
+    // OS
+    GET_ALL_OS: `getapp-device.get-all-os${region}`,
 } as const
 
 export const DeviceTopicsEmit = {

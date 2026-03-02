@@ -1,25 +1,28 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, In, Not, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceTypeEntity, DiscoveryType, PlatformEntity, ReleaseEntity } from '@app/common/database/entities';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceTypeEntity, DiscoveryType, PlatformEntity } from '@app/common/database/entities';
 import { ComponentStateDto, DiscoveryMessageDto, DiscoveryMessageV2Dto } from '@app/common/dto/discovery';
 import { MTlsStatusDto } from '@app/common/dto/device';
 import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
 import { DeviceService } from '../device/device.service';
 import { DeviceComponentStateDto } from '@app/common/dto/device/dto/device-software.dto';
 import { ComponentV2Dto } from '@app/common/dto/upload';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { DeviceRepoService } from '../modules/device-client-repo/device-repo.service';
 import { DevicePutDto } from '@app/common/dto/device/dto/device-put.dto';
 import { PendingVersionService } from '../pending-version/pending-version.service';
+import { OSService } from '../os/os.service';
 import { AppError, ErrorCode } from '@app/common/dto/error';
 import { RuleService } from '@app/common/rules/services';
 import { RuleType } from '@app/common/rules/enums/rule.enums';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
-import { UploadTopicsEmit } from '@app/common/microservice-client/topics';
+import { ProjectManagementTopics, UploadTopics, UploadTopicsEmit } from '@app/common/microservice-client/topics';
+import { lastValueFrom } from 'rxjs';
+import { ReleaseDto } from '@app/common/dto/upload';
 
 @Injectable()
-export class DiscoveryService {
+export class DiscoveryService implements OnModuleInit {
   private readonly logger = new Logger(DiscoveryService.name);
 
   constructor(
@@ -28,14 +31,32 @@ export class DiscoveryService {
     @InjectRepository(DeviceComponentEntity) private readonly deviceComponentRepo: Repository<DeviceComponentEntity>,
     @InjectRepository(PlatformEntity) private readonly platformRepo: Repository<PlatformEntity>,
     @InjectRepository(DeviceTypeEntity) private readonly deviceTypeRepo: Repository<DeviceTypeEntity>,
-    @InjectRepository(ReleaseEntity) private readonly releaseRepo: Repository<ReleaseEntity>,
     private readonly deviceService: DeviceService,
     private readonly deviceRepoService: DeviceRepoService,
     private readonly dataSource: DataSource,
     private readonly ruleService: RuleService,
     private readonly pendingVersionService: PendingVersionService,
     @Inject(MicroserviceName.UPLOAD_SERVICE) private readonly uploadClient: MicroserviceClient,
+    @Inject(MicroserviceName.PROJECT_MANAGEMENT_SERVICE) private readonly projectManagementClient: MicroserviceClient,
+    private readonly osService: OSService,
   ) {
+  }
+
+  async onModuleInit() {
+    // Subscribe to response topics for Kafka request-response pattern
+    this.uploadClient.subscribeToResponseOf([
+      UploadTopics.GET_RELEASES,
+    ]);
+    this.projectManagementClient.subscribeToResponseOf([
+      ProjectManagementTopics.GET_PROJECTS,
+    ]);
+    
+    await Promise.all([
+      this.uploadClient.connect(),
+      this.projectManagementClient.connect(),
+    ]);
+    
+    this.logger.log('DiscoveryService initialized and connected to microservices');
   }
 
   async getDevicePerson(deviceId: string): Promise<(Pick<DiscoveryMessageEntity, "personalDevice"> & { device: Pick<DeviceEntity, "ID">; }) | undefined | null> {
@@ -133,10 +154,17 @@ export class DiscoveryService {
     // Wrap dto.snapshotDate in Date, as microservice data loses type.
     if (parent && device.lastConnectionDate && device.lastConnectionDate > new Date(dto.snapshotDate)) return device
 
-    device.name = dto.general?.personalDevice?.name;
+    device.name = dto.general?.personalDevice?.name ?? device.name;
     device.lastConnectionDate = parent ? dto.snapshotDate : new Date();
     device.availableStorage = dto.general?.situationalDevice?.availableStorage;
     device.OS = dto.general?.physicalDevice?.OS;
+    try{
+    if (device.OS) {
+      await this.osService.ensureOSExists(device.OS);
+    }
+    } catch (err) {
+      this.logger.error(`Error ensuring OS exists: ${err}`);
+    }
     device.MAC = dto.general?.physicalDevice?.MAC;
     device.IP = dto.general?.physicalDevice?.IP;
     device.formations = dto?.softwareData?.formations;
@@ -226,6 +254,8 @@ export class DiscoveryService {
 
     if (!lastMsgForType || new Date(dto.snapshotDate) > lastMsgForType.snapshotDate) {
       if (dto.discoveryType === DiscoveryType.GET_APP && dto?.softwareData?.components) {
+        // Fix components where agent reports project ID as 0 but the project now exists in DB
+        await this.fixZeroProjectIds(dto.softwareData.components);
         await this.setCompsOnDeviceV2(device.ID, dto?.softwareData?.components)
       }
     }
@@ -285,6 +315,101 @@ export class DiscoveryService {
 
   }
 
+  /**
+   * Fixes components where the agent reports project ID as 0 but the project now exists in the database.
+   * This happens when a pending version is accepted but the agent hasn't synced the updated project ID yet.
+   */
+  private async fixZeroProjectIds(components: ComponentStateDto[]): Promise<void> {
+    const zeroIdComponents = components.filter(comp => {
+      const [namePart] = comp.catalogId.split("@");
+      const projectIdentifier = namePart?.split('.')[0] || namePart;
+      return projectIdentifier === '0';
+    });
+
+    if (zeroIdComponents.length === 0) {
+      return;
+    }
+
+    this.logger.debug(`Found ${zeroIdComponents.length} component(s) with project ID 0, attempting to resolve`);
+
+    try {
+      // Extract unique project names from zeroIdComponents to optimize the query
+      const projectNames = new Set<string>();
+      for (const comp of zeroIdComponents) {
+        const [namePart] = comp.catalogId.split("@");
+        const projectName = namePart.split('.').pop(); // Get the name part after '0.'
+        if (projectName && projectName !== '0') {
+          projectNames.add(projectName);
+        }
+      }
+
+      if (projectNames.size === 0) {
+        this.logger.debug(`No valid project names extracted from zero ID components`);
+        return;
+      }
+
+      // Get only projects matching these names from project-management
+      const response = await lastValueFrom(
+        this.projectManagementClient.send(ProjectManagementTopics.GET_PROJECTS, {
+          projectNames: Array.from(projectNames)
+        })
+      );
+      
+      // Handle both array response and paginated response
+      const projects = Array.isArray(response) ? response : (response?.data || []);
+      
+      if (!projects || projects.length === 0) {
+        this.logger.debug(`No projects found for names [${Array.from(projectNames).join(', ')}], components with ID 0 will be recorded as pending versions`);
+        return;
+      }
+
+      // Build a map of project name -> project ID for quick lookup
+      const nameToIdMap = new Map<string, number>();
+      
+      for (const project of projects) {
+        const projectName = project.name || project.projectName;
+        const projectId = project.id;
+        
+        if (projectName && projectId) {
+          nameToIdMap.set(projectName, projectId);
+        }
+      }
+
+      // Replace project ID 0 with the correct project ID based on name match
+      for (const comp of zeroIdComponents) {
+        const [namePart, version] = comp.catalogId.split("@");
+        
+        if (!version) {
+          continue;
+        }
+
+        const projectName = namePart.split('.').pop();
+        
+        if (!projectName) {
+          continue;
+        }
+        
+        // Find matching project by name
+        const projectId = nameToIdMap.get(projectName);
+        
+        if (projectId) {
+          const newCatalogId = `${projectId}.${projectName}@${version}`;
+          
+          this.logger.log(`Resolved ${comp.catalogId} to ${newCatalogId}`);
+          comp.catalogId = newCatalogId;
+        } else {
+          this.logger.debug(
+            `No matching project found for name '${projectName}' in ${comp.catalogId}, ` +
+            `will be recorded as pending version`
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.error(`Error fetching projects from project-management: ${err}`);
+      // If we can't get projects, components with ID 0 will be recorded as pending versions
+    }
+  }
+
   private async setCompsOnDeviceV2(deviceId: string, compsState: ComponentStateDto[]) {
     this.logger.log(`Set components on device '${deviceId}' (v2) — processing ${compsState?.length ?? 0} component(s)`);
     const compsCatalogId = Array.from(new Set(compsState.map(comp => comp.catalogId)));
@@ -295,6 +420,9 @@ export class DiscoveryService {
     };
 
     const normalizedCompsCatalogId = compsCatalogId.map(normalizeId);
+
+    // Get all pending versions previously reported by this device
+    const previousPendingVersions = await this.pendingVersionService.getPendingVersionsForDevice(deviceId);
 
     let deviceComps: DeviceComponentStateDto[] = []
 
@@ -329,19 +457,40 @@ export class DiscoveryService {
     })
 
 
-    const comps = await this.releaseRepo
-      .find({
-        where: [
-          { catalogId: In(compsCatalogId) },
-          ...compsCatalogId.map(id => {
-            const [namePart, version] = id.split("@");
-            return { version: version || "", project: { name: namePart.split('.').pop() || "" } };
-          })
-        ],
-        relations: { project: true },
-        select: { catalogId: true }
-      })
-      .then(comps => comps.map(c => c.catalogId));
+    // Query upload service for releases instead of direct DB access
+    const projectNames = Array.from(new Set(
+      compsCatalogId.map(id => {
+        const [namePart] = id.split("@");
+        return namePart.split('.').pop() || "";
+      }).filter(name => name && name !== '0')
+    ));
+
+    let comps: string[] = [];
+    
+    try {
+      // Fetch releases for each project from upload service
+      const releasePromises = projectNames.map(async (projectName) => {
+        try {
+          const releases: ReleaseDto[] = await lastValueFrom(
+            this.uploadClient.send(UploadTopics.GET_RELEASES, { projectIdentifier: projectName })
+          );
+          return releases.map(r => r.id);
+        } catch (err) {
+          this.logger.debug(`Could not fetch releases for project ${projectName}: ${err}`);
+          return [];
+        }
+      });
+      
+      const allReleases = await Promise.all(releasePromises);
+      comps = allReleases.flat();
+      
+      // Also include exact catalogId matches
+      const exactMatches = comps.filter(c => compsCatalogId.includes(c));
+      this.logger.debug(`Found ${comps.length} total releases from upload service, ${exactMatches.length} exact matches`);
+    } catch (err) {
+      this.logger.error(`Error fetching releases from upload service: ${err}`);
+      // Continue with empty comps array to avoid breaking the flow
+    }
 
     const normalizedComps = comps.map(normalizeId);
     const uninstalledCatalogIds = new Set(uninstalledComps.map(u => u.release.catalogId));
@@ -388,6 +537,40 @@ export class DiscoveryService {
       }
     }
 
+    // Remove device from pending versions that are no longer being reported
+    if (previousPendingVersions.length > 0) {
+      // Build a set of currently reported unknown version identifiers (projectName@version)
+      const currentUnknownVersionIds = new Set(
+        unknownVersions.map(comp => {
+          const [namePart, version] = comp.catalogId.split("@");
+          const projectName = namePart?.split('.').pop() || namePart;
+          return `${projectName}@${version}`;
+        })
+      );
+
+      // Check each previously reported pending version
+      for (const prevPending of previousPendingVersions) {
+        const versionId = `${prevPending.projectName}@${prevPending.version}`;
+        
+        // If this version is no longer in the current unknown versions, remove the device
+        if (!currentUnknownVersionIds.has(versionId)) {
+          this.logger.log(
+            `Device ${deviceId} no longer reporting pending version ${versionId}, removing from reportingDeviceIds`
+          );
+          
+          this.pendingVersionService.removeDeviceFromPendingVersion(
+            prevPending.projectName,
+            prevPending.version,
+            deviceId
+          ).catch(err => {
+            this.logger.error(
+              `Failed to remove device ${deviceId} from pending version ${versionId}: ${err.message}`
+            );
+          });
+        }
+      }
+    }
+
     compsState
       .filter(cs => comps.includes(cs.catalogId) || normalizedComps.includes(normalizeId(cs.catalogId)))
       .forEach(c => deviceComps.push(DeviceComponentStateDto.fromParent(c, deviceId)))
@@ -410,7 +593,35 @@ export class DiscoveryService {
 
 
   private async setCompsOnDevice(deviceId: string, compsCatalogId: string[]) {
-    let comps = await this.releaseRepo.find({ where: { catalogId: In(compsCatalogId) } })
+    // Query upload service for releases
+    const projectNames = Array.from(new Set(
+      compsCatalogId.map(id => {
+        const [namePart] = id.split("@");
+        return namePart.split('.').pop() || "";
+      }).filter(name => name && name !== '0')
+    ));
+
+    let comps: ReleaseDto[] = [];
+    
+    try {
+      // Fetch releases for each project from upload service
+      const releasePromises = projectNames.map(async (projectName) => {
+        try {
+          const releases: ReleaseDto[] = await lastValueFrom(
+            this.uploadClient.send(UploadTopics.GET_RELEASES, { projectIdentifier: projectName })
+          );
+          return releases.filter(r => compsCatalogId.includes(r.id));
+        } catch (err) {
+          this.logger.debug(`Could not fetch releases for project ${projectName}: ${err}`);
+          return [];
+        }
+      });
+      
+      const allReleases = await Promise.all(releasePromises);
+      comps = allReleases.flat();
+    } catch (err) {
+      this.logger.error(`Error fetching releases from upload service: ${err}`);
+    }
 
     let deviceComps: DeviceComponentStateDto[] = []
 
@@ -434,7 +645,7 @@ export class DiscoveryService {
     })
     for (let comp of comps) {
       let dss = new DeviceComponentStateDto()
-      dss.catalogId = comp.catalogId;
+      dss.catalogId = comp.id;
       dss.deviceId = deviceId;
       dss.state = DeviceComponentStateEnum.INSTALLED;
 
