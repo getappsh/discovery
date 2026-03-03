@@ -44,6 +44,8 @@ export const UploadTopics = {
     // Export/Import
     EXPORT_RELEASE: `getapp-upload.export-release${region}`,
     IMPORT_RELEASE: `getapp-upload.import-release${region}`,
+    // Deployment Report
+    GET_DEPLOYMENT_REPORT: `getapp-upload.get-deployment-report${region}`,
 
 } as const
 
@@ -58,7 +60,8 @@ export const DeliveryTopics = {
     PREPARED_DELIVERY_STATUS: `getapp-delivery.prepared-status${region}`,
     GET_CACHE_CONFIG: `getapp-delivery.get-cache-config${region}`,
     SET_CACHE_CONFIG: `getapp-delivery.set-cache-config${region}`,
-    CHECK_HEALTH: `getapp-delivery.check-health${region}`
+    CHECK_HEALTH: `getapp-delivery.check-health${region}`,
+    GET_DELIVERY_STATUSES: `getapp-delivery.get-delivery-statuses${region}`,
 } as const
 
 export const DeliveryTopicsEmit = {
@@ -88,11 +91,13 @@ export const OfferingTopicsEmit = {
     COMPONENT_UPLOAD_EVENT: `getapp-offering.component-upload-event${region}`,
     RELEASE_CHANGED_EVENT: `getapp-offering.release-changed-event${region}`,
     OFFERING_PUSH: `getapp-offering.push${region}`,
+    OFFERING_UNPUSH: `getapp-offering.unpush${region}`,
     DEVICE_SOFTWARE_EVENT: `getapp-offering.device.software-event${region}`,
     DEVICE_MAP_EVENT: `getapp-offering.device.map-event${region}`,
 }
 export const DeployTopics = {
-    CHECK_HEALTH: `getapp-deploy.check-health${region}`
+    CHECK_HEALTH: `getapp-deploy.check-health${region}`,
+    GET_DEPLOY_STATUSES: `getapp-deploy.get-deploy-statuses${region}`,
 } as const
 
 export const DeployTopicsEmit = {
@@ -155,11 +160,16 @@ export const ProjectManagementTopics = {
     UPDATE_LABEL: `getapp-project-management.update-label${region}`,
     DELETE_LABEL: `getapp-project-management.delete-label${region}`,
 
+    // Deployment Report
+    GET_SYSTEM_WIDE_DEPLOYMENT_REPORT: `getapp-project-management.get-system-wide-deployment-report${region}`,
+    GET_PROJECT_DEPLOYMENT_REPORT: `getapp-project-management.get-project-deployment-report${region}`,
+
     CHECK_HEALTH: `getapp-project-management.check-health${region}`
 } as const
 
 export const ProjectManagementTopicsEmit = {
     PROJECT_RELEASES_CHANGED: `getapp-project-management.project-releases-changed${region}`,
+    DEPLOYMENT_REPORT_REQUESTED: `getapp-project-management.deployment-report-requested${region}`,
 }
 
 export const GetMapTopics = {
