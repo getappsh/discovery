@@ -9,7 +9,7 @@ export class AddCreatedByUpdatedByToRelease1765120399990 implements MigrationInt
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "release" DROP COLUMN "updated_by"`);
-        await queryRunner.query(`ALTER TABLE "release" DROP COLUMN "created_by"`);
+        await queryRunner.query(`ALTER TABLE "release" DROP COLUMN IF EXISTS "updated_by"`);
+        await queryRunner.query(`ALTER TABLE "release" DROP COLUMN IF EXISTS "created_by"`);
     }
 }
