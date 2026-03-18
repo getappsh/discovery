@@ -132,6 +132,8 @@ export class RestrictionsService {
       .innerJoinAndSelect('dm.device', 'device')
       .leftJoinAndSelect('device.platform', 'platform')
       .leftJoinAndSelect('device.deviceType', 'deviceType')
+      .leftJoinAndSelect('device.orgUID', 'orgUID')
+      .leftJoinAndSelect('orgUID.group', 'group')
       .distinctOn(['device.ID'])
       .orderBy('device.ID', 'ASC')
       .addOrderBy('dm.snapshotDate', 'DESC')
@@ -152,6 +154,7 @@ export class RestrictionsService {
           serialNumber: message.device.serialNumber,
           platformName: (message.device as any).platform?.name,
           deviceTypeNames: (message.device as any).deviceType?.map((dt: any) => dt.name) ?? [],
+          groupNames: (message.device as any).orgUID?.group ? [(message.device as any).orgUID.group.name] : [],
         });
       }
     }
