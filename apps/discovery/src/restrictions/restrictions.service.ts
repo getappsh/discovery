@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
@@ -102,11 +102,21 @@ export class RestrictionsService {
     let attachedReleases: AttachedReleaseDto[] | undefined;
 
     if (dto.ruleId) {
-      // Load via upload if it is a policy (upload owns policies), otherwise
-      // load locally for restrictions.
-      const localRule = await this.ruleService.findOneById(dto.ruleId);
-      if (localRule.type === RuleType.POLICY) {
-        // Ask upload for the canonical rule + its release associations
+      // Try to load the rule locally first (restrictions live here).
+      // If not found — e.g. when discovery and upload use separate databases —
+      // fall back to asking the upload microservice (which owns policies).
+      let localRule: any = null;
+      try {
+        localRule = await this.ruleService.findOneById(dto.ruleId);
+      } catch (err) {
+        if (!(err instanceof NotFoundException)) throw err;
+      }
+
+      if (localRule && localRule.type !== RuleType.POLICY) {
+        // Found locally as a restriction — use it directly
+        ruleJson = localRule.rule;
+      } else {
+        // Either a policy (upload is canonical) or not found locally (separate DB)
         const policyDefinition = await firstValueFrom(
           this.uploadClient.send(UploadTopics.GET_POLICY_INTERNAL, dto.ruleId),
         );
@@ -119,8 +129,6 @@ export class RestrictionsService {
             projectName: r.projectName,
           }),
         );
-      } else {
-        ruleJson = localRule.rule;
       }
     } else {
       ruleJson = typeof dto.rule === 'string' ? JSON.parse(dto.rule) : dto.rule;
