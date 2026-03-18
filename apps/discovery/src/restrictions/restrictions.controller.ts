@@ -2,7 +2,7 @@ import { Controller, Logger } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { DeviceTopics } from '@app/common/microservice-client/topics';
 import { RpcPayload } from '@app/common/microservice-client';
-import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto } from '@app/common/rules/dto';
+import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, EvaluateRuleDto } from '@app/common/rules/dto';
 import { RestrictionsService } from './restrictions.service';
 import { ValidateProjectAnyAccess } from '@app/common/utils/project-access';
 
@@ -57,5 +57,17 @@ export class RestrictionsController {
   async deleteRestriction(@RpcPayload() id: string) {
     this.logger.log(`Deleting restriction ${id}`);
     return this.restrictionsService.deleteRestriction(id);
+  }
+
+  /**
+   * Evaluate a rule (restriction or policy) against all devices.
+   * Accepts either a ruleId (existing saved rule) or an inline rule JSON.
+   * For policy rules the rule and its release associations are fetched from upload.
+   * Returns the subset of devices whose latest discovery data satisfies the rule.
+   */
+  @MessagePattern(DeviceTopics.EVALUATE_RESTRICTION)
+  async evaluateRule(@RpcPayload() dto: EvaluateRuleDto) {
+    this.logger.log('Evaluating rule against devices');
+    return this.restrictionsService.evaluateRule(dto);
   }
 }
