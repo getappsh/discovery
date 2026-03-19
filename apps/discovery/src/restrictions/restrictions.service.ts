@@ -193,40 +193,56 @@ export class RestrictionsService {
     device: DeviceEntity,
     message: DiscoveryMessageEntity,
   ): Record<string, any> {
-    // Collect all blobs in ascending specificity order
-    const blobs = [
+    // Merge all blobs in ascending specificity order into a single raw object.
+    // The nested `metadata` sub-object inside each blob is promoted to the top
+    // level so dynamic fields like `device.test` become directly accessible.
+    const raw: Record<string, any> = {};
+    for (const blob of [
       message.metaData,
       message.personalDevice,
       message.situationalDevice,
       message.discoveryData,
-    ].filter(Boolean) as Record<string, any>[];
-
-    // Start with known, typed device columns
-    const deviceFields: Record<string, any> = {
-      deviceId: device.ID,
-      deviceName: device.name,
-      os: device.OS,
-      ip: device.IP,
-      mac: device.MAC,
-      serialNumber: device.serialNumber,
-    };
-
-    for (const blob of blobs) {
-      // Spread top-level blob keys (e.g. deliverySource, deviceType …)
-      Object.assign(deviceFields, blob);
-      // Also promote the nested `metadata` object so dynamic fields like
-      // `device.test` or `device.additionalProp1` become directly accessible
+    ].filter(Boolean) as Record<string, any>[]) {
+      Object.assign(raw, blob);
       if (blob.metadata && typeof blob.metadata === 'object' && !Array.isArray(blob.metadata)) {
-        Object.assign(deviceFields, blob.metadata);
+        Object.assign(raw, blob.metadata);
       }
     }
 
-    // Remove the now-redundant nested `metadata` key to avoid ambiguity
-    delete deviceFields.metadata;
+    // Destructure out non-canonical / aliased keys so they are never present in
+    // the final object — everything else (...rest) is kept as dynamic blob data.
+    const {
+      metadata: _metadata,   // already promoted above, drop the nested copy
+      deviceName,            // alias → name
+      mac,                   // alias → macAddress
+      availableStorage,      // alias → storage.available
+      power,                 // alias → battery.level
+      os: rawOs,             // may be a plain string — normalised below
+      ...rest
+    } = raw;
 
-    // Sentinel field: `device.any` (and bare `any`) is always true.
-    // Rules can use it as a "match all devices" condition regardless of device state.
-    deviceFields.any = true;
+    const osValue = rawOs ?? device.OS;
+
+    const deviceFields: Record<string, any> = {
+      // Dynamic blob data (non-canonical keys already destructured out above)
+      ...rest,
+      // Canonical typed fields — entity columns are the fallback
+      deviceId: device.ID,
+      name: rest.name ?? deviceName ?? device.name,
+      os: typeof osValue === 'string' ? { name: osValue } : (osValue ?? {}),
+      ip: rest.ip ?? device.IP,
+      macAddress: rest.macAddress ?? mac ?? device.MAC,
+      serialNumber: rest.serialNumber ?? device.serialNumber,
+      // Canonical aliases for blob-sourced fields
+      ...(availableStorage !== undefined && {
+        storage: { ...(typeof rest.storage === 'object' ? rest.storage : {}), available: availableStorage },
+      }),
+      ...(power !== undefined && {
+        battery: { ...(typeof rest.battery === 'object' ? rest.battery : {}), level: power },
+      }),
+      // Sentinel: `device.any` is always true — use as "match all" in rules
+      any: true,
+    };
 
     return {
       // Nested namespace: rules can reference field "device.test"
