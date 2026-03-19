@@ -66,10 +66,7 @@ export class RestrictionsService {
    * Lists all restrictions with optional filters
    */
   async listRestrictions(query: RestrictionQueryDto) {
-    // Force type to be restriction
-    query.type = RuleType.RESTRICTION;
-    
-    const rules = await this.ruleService.findAll(query);
+    const rules = await this.ruleService.findAll({ ...query, type: RuleType.RESTRICTION });
     return rules.map(rule => this.ruleService.ruleEntityToDefinition(rule));
   }
 
