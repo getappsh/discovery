@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { RuleService } from '@app/common/rules/services';
 import { RuleEvaluationService } from '@app/common/rules/services/rule-evaluation.service';
-import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, EvaluateRuleDto, EvaluateRuleResultDto, EvaluatedDeviceDto, AttachedReleaseDto } from '@app/common/rules/dto';
+import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, EvaluateRuleDto, EvaluateRuleResultDto, EvaluatedDeviceDto, AttachedReleaseDto, GetDeviceContextDto } from '@app/common/rules/dto';
 import { RuleType } from '@app/common/rules/enums/rule.enums';
 import { DeviceEntity } from '@app/common/database/entities/device.entity';
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
@@ -160,6 +160,7 @@ export class RestrictionsService {
           platformName: (message.device as any).platform?.name,
           deviceTypeNames: (message.device as any).deviceType?.map((dt: any) => dt.name) ?? [],
           groupNames: (message.device as any).orgUID?.group ? [(message.device as any).orgUID.group.name] : [],
+          discoveryMessageId: String(message.id),
         });
       }
     }
@@ -169,6 +170,55 @@ export class RestrictionsService {
       totalDevicesEvaluated: latestMessages.length,
       matchingCount: matchingDevices.length,
       ...(attachedReleases !== undefined && { attachedReleases }),
+    };
+  }
+
+  /**
+   * Returns the evaluation context that was (or would be) used for a given device,
+   * along with the ID of the discovery message it was built from.
+   * Useful for inspecting what data a rule evaluation sees for a specific device.
+   *
+   * If `discoveryMessageId` is provided the exact message is fetched directly —
+   * `deviceId` is not required in that case.
+   * If only `deviceId` is provided the most recent message for that device is used.
+   */
+  async getDeviceContext(dto: GetDeviceContextDto): Promise<{ discoveryMessageId: string; context: Record<string, any> }> {
+    let message: DiscoveryMessageEntity | null;
+
+    if (dto.discoveryMessageId) {
+      message = await this.discoveryMessageRepository
+        .createQueryBuilder('dm')
+        .innerJoinAndSelect('dm.device', 'device')
+        .leftJoinAndSelect('device.platform', 'platform')
+        .leftJoinAndSelect('device.deviceType', 'deviceType')
+        .leftJoinAndSelect('device.orgUID', 'orgUID')
+        .leftJoinAndSelect('orgUID.group', 'group')
+        .where('dm.id = :id', { id: Number(dto.discoveryMessageId) })
+        .getOne();
+
+      if (!message) {
+        throw new NotFoundException(`Discovery message ${dto.discoveryMessageId} not found`);
+      }
+    } else {
+      message = await this.discoveryMessageRepository
+        .createQueryBuilder('dm')
+        .innerJoinAndSelect('dm.device', 'device')
+        .leftJoinAndSelect('device.platform', 'platform')
+        .leftJoinAndSelect('device.deviceType', 'deviceType')
+        .leftJoinAndSelect('device.orgUID', 'orgUID')
+        .leftJoinAndSelect('orgUID.group', 'group')
+        .where('device.ID = :deviceId', { deviceId: dto.deviceId })
+        .orderBy('dm.snapshotDate', 'DESC')
+        .getOne();
+
+      if (!message) {
+        throw new NotFoundException(`No discovery message found for device ${dto.deviceId}`);
+      }
+    }
+
+    return {
+      discoveryMessageId: String(message.id),
+      context: this.buildDeviceContext(message.device, message),
     };
   }
 

@@ -2,7 +2,7 @@ import { Controller, Logger } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { DeviceTopics } from '@app/common/microservice-client/topics';
 import { RpcPayload } from '@app/common/microservice-client';
-import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, EvaluateRuleDto } from '@app/common/rules/dto';
+import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, EvaluateRuleDto, GetDeviceContextDto } from '@app/common/rules/dto';
 import { RestrictionsService } from './restrictions.service';
 import { ValidateProjectAnyAccess } from '@app/common/utils/project-access';
 
@@ -69,5 +69,15 @@ export class RestrictionsController {
   async evaluateRule(@RpcPayload() dto: EvaluateRuleDto) {
     this.logger.log('Evaluating rule against devices');
     return this.restrictionsService.evaluateRule(dto);
+  }
+
+  /**
+   * Returns the evaluation context built from the latest discovery message for a device.
+   * The context structure is identical to what is used internally during rule evaluation.
+   */
+  @MessagePattern(DeviceTopics.GET_DEVICE_CONTEXT)
+  async getDeviceContext(@RpcPayload() dto: GetDeviceContextDto) {
+    this.logger.log(`Getting device context`);
+    return this.restrictionsService.getDeviceContext(dto);
   }
 }
