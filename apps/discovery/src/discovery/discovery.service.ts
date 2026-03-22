@@ -1,7 +1,7 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, In, Not, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceTypeEntity, DiscoveryType, PlatformEntity } from '@app/common/database/entities';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceTypeEntity, DiscoveryType, PlatformEntity, RuleEntity } from '@app/common/database/entities';
 import { ComponentStateDto, DiscoveryMessageDto, DiscoveryMessageV2Dto } from '@app/common/dto/discovery';
 import { MTlsStatusDto } from '@app/common/dto/device';
 import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
@@ -20,6 +20,7 @@ import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-c
 import { ProjectManagementTopics, UploadTopics, UploadTopicsEmit } from '@app/common/microservice-client/topics';
 import { lastValueFrom } from 'rxjs';
 import { ReleaseDto } from '@app/common/dto/upload';
+import { RuleDefinition } from '@app/common/rules/types/rule.types';
 
 @Injectable()
 export class DiscoveryService implements OnModuleInit {
@@ -750,7 +751,7 @@ export class DiscoveryService implements OnModuleInit {
    * - Device Type(s)
    * - OS Type
    */
-  async getRestrictionsForDevice(deviceId: string): Promise<any[]> {
+  async getRestrictionsForDevice(deviceId: string): Promise<RuleDefinition[]> {
     this.logger.log(`Getting restrictions for device ${deviceId}`);
 
     try {
@@ -773,7 +774,7 @@ export class DiscoveryService implements OnModuleInit {
       const osType = device.platform?.name; // Adjust this based on where OS info is stored
 
       // Collect all restrictions
-      const allRestrictions: any[] = [];
+      const allRestrictions: RuleEntity[] = [];
 
       // 1. Get restrictions by device ID
       if (deviceId) {
