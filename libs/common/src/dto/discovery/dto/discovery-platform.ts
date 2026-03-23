@@ -19,6 +19,7 @@ export class PlatformDiscoverDto {
   })
   @IsString()
   @IsNotEmpty()
+  @IsOptional()
   platformId?: string
 
   @ApiProperty({
