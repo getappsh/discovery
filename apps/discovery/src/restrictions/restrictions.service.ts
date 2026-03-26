@@ -8,6 +8,7 @@ import { CreateRestrictionDto, UpdateRuleDto, RestrictionQueryDto, EvaluateRuleD
 import { RuleType } from '@app/common/rules/enums/rule.enums';
 import { DeviceEntity } from '@app/common/database/entities/device.entity';
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
+import { DiscoveryType } from '@app/common/database/entities/enums.entity';
 import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-client';
 import { UploadTopics } from '@app/common/microservice-client/topics';
 
@@ -139,6 +140,7 @@ export class RestrictionsService {
       .leftJoinAndSelect('device.deviceType', 'deviceType')
       .leftJoinAndSelect('device.orgUID', 'orgUID')
       .leftJoinAndSelect('orgUID.group', 'group')
+      .where('dm.discoveryType = :discoveryType', { discoveryType: DiscoveryType.GET_APP })
       .distinctOn(['device.ID'])
       .orderBy('device.ID', 'ASC')
       .addOrderBy('dm.snapshotDate', 'DESC')
@@ -193,7 +195,7 @@ export class RestrictionsService {
         .leftJoinAndSelect('device.deviceType', 'deviceType')
         .leftJoinAndSelect('device.orgUID', 'orgUID')
         .leftJoinAndSelect('orgUID.group', 'group')
-        .where('dm.id = :id', { id: Number(dto.discoveryMessageId) })
+        .where('dm.id = :id AND dm.discoveryType = :discoveryType', { id: Number(dto.discoveryMessageId), discoveryType: DiscoveryType.GET_APP })
         .getOne();
 
       if (!message) {
@@ -207,7 +209,7 @@ export class RestrictionsService {
         .leftJoinAndSelect('device.deviceType', 'deviceType')
         .leftJoinAndSelect('device.orgUID', 'orgUID')
         .leftJoinAndSelect('orgUID.group', 'group')
-        .where('device.ID = :deviceId', { deviceId: dto.deviceId })
+        .where('device.ID = :deviceId AND dm.discoveryType = :discoveryType', { deviceId: dto.deviceId, discoveryType: DiscoveryType.GET_APP })
         .orderBy('dm.snapshotDate', 'DESC')
         .getOne();
 
