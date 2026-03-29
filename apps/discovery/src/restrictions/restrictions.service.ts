@@ -129,7 +129,15 @@ export class RestrictionsService {
         );
       }
     } else {
-      ruleJson = typeof dto.rule === 'string' ? JSON.parse(dto.rule) : dto.rule;
+      if (typeof dto.rule === 'string') {
+        try {
+          ruleJson = JSON.parse(dto.rule);
+        } catch {
+          throw new BadRequestException('Invalid rule JSON');
+        }
+      } else {
+        ruleJson = dto.rule;
+      }
     }
 
     // Get latest discovery message per device using DISTINCT ON (PostgreSQL)
