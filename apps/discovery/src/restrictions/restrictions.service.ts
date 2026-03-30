@@ -302,6 +302,8 @@ export class RestrictionsService {
       any: true,
       // Indicates whether this is the first discovery message for the device
       isNew,
+      // Device type names (many-to-many relation)
+      deviceTypes: device.deviceType?.map((dt) => dt.name) ?? [],
     };
 
     return {
