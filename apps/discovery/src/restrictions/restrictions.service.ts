@@ -246,9 +246,10 @@ export class RestrictionsService {
    * (for field names like `device.os`) and flat at `context.*` for backward
    * compatibility with rules that skip the prefix.
    */
-  private buildDeviceContext(
+  buildDeviceContext(
     device: DeviceEntity,
     message: DiscoveryMessageEntity,
+    isNew = false,
   ): Record<string, any> {
     // Merge all blobs in ascending specificity order into a single raw object.
     // The nested `metadata` sub-object inside each blob is promoted to the top
@@ -299,6 +300,8 @@ export class RestrictionsService {
       }),
       // Sentinel: `device.any` is always true — use as "match all" in rules
       any: true,
+      // Indicates whether this is the first discovery message for the device
+      isNew,
     };
 
     return {
