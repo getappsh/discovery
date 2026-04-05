@@ -295,8 +295,13 @@ export class RestrictionsService {
       ...(availableStorage !== undefined && {
         storage: { ...(typeof rest.storage === 'object' ? rest.storage : {}), available: availableStorage },
       }),
-      ...(power !== undefined && {
-        battery: { ...(typeof rest.battery === 'object' ? rest.battery : {}), level: power },
+      ...((power !== undefined || (typeof rest.battery === 'object' && rest.battery !== null)) && {
+        battery: {
+          ...(typeof rest.battery === 'object' ? rest.battery : {}),
+          ...(power !== undefined && { level: power }),
+          // Alias battery.isPluggedIn → battery.isCharging
+          ...(typeof rest.battery === 'object' && rest.battery !== null && rest.battery.isPluggedIn !== undefined && { isCharging: rest.battery.isPluggedIn }),
+        },
       }),
       // Sentinel: `device.any` is always true — use as "match all" in rules
       any: true,
