@@ -1,7 +1,7 @@
 import { DiscoveryMessageEntity } from '@app/common/database/entities/discovery-message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, In, Not, Repository } from 'typeorm';
-import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceTypeEntity, DiscoveryType, PlatformEntity } from '@app/common/database/entities';
+import { DeviceComponentEntity, DeviceComponentStateEnum, DeviceEntity, DeviceTypeEntity, DiscoveryType, PlatformEntity, RuleEntity } from '@app/common/database/entities';
 import { ComponentStateDto, DiscoveryMessageDto, DiscoveryMessageV2Dto } from '@app/common/dto/discovery';
 import { MTlsStatusDto } from '@app/common/dto/device';
 import { DeviceDiscoverDto, DeviceDiscoverResDto } from '@app/common/dto/im';
@@ -20,6 +20,8 @@ import { MicroserviceClient, MicroserviceName } from '@app/common/microservice-c
 import { ProjectManagementTopics, UploadTopics, UploadTopicsEmit } from '@app/common/microservice-client/topics';
 import { lastValueFrom } from 'rxjs';
 import { ReleaseDto } from '@app/common/dto/upload';
+import { RuleDefinition } from '@app/common/rules/types/rule.types';
+import { RestrictionsService } from '../restrictions/restrictions.service';
 
 @Injectable()
 export class DiscoveryService implements OnModuleInit {
@@ -39,6 +41,7 @@ export class DiscoveryService implements OnModuleInit {
     @Inject(MicroserviceName.UPLOAD_SERVICE) private readonly uploadClient: MicroserviceClient,
     @Inject(MicroserviceName.PROJECT_MANAGEMENT_SERVICE) private readonly projectManagementClient: MicroserviceClient,
     private readonly osService: OSService,
+    private readonly restrictionsService: RestrictionsService,
   ) {
   }
 
@@ -226,6 +229,15 @@ export class DiscoveryService implements OnModuleInit {
 
     const device = await this.setDeviceContext(dto, parent)
 
+    // Determine whether this is the first discovery for this device (before saving new message)
+    let isNew = false;
+    if (!parent) {
+      const priorMessageCount = await this.discoveryMessageRepo.count({
+        where: { device: { ID: device.ID } },
+      });
+      isNew = priorMessageCount === 0;
+    }
+
     const dm = new DiscoveryMessageEntity()
     dm.snapshotDate = parent ? dto.snapshotDate : new Date()
     dm.reportingDevice = parent
@@ -245,6 +257,11 @@ export class DiscoveryService implements OnModuleInit {
 
     this.logger.verbose(`discovery message ${dm}`);
     this.discoveryMessageRepo.save(dm);
+
+    // Build device context for push-rule evaluation (top-level devices only)
+    if (!parent) {
+      dto.deviceContext = this.restrictionsService.buildDeviceContext(device, dm, isNew);
+    }
 
     const lastMsgForType = await this.discoveryMessageRepo.findOne({
       where: { device: { ID: device.ID }, discoveryType: dto.discoveryType },
@@ -750,7 +767,7 @@ export class DiscoveryService implements OnModuleInit {
    * - Device Type(s)
    * - OS Type
    */
-  async getRestrictionsForDevice(deviceId: string): Promise<any[]> {
+  async getRestrictionsForDevice(deviceId: string): Promise<RuleDefinition[]> {
     this.logger.log(`Getting restrictions for device ${deviceId}`);
 
     try {
@@ -773,7 +790,7 @@ export class DiscoveryService implements OnModuleInit {
       const osType = device.platform?.name; // Adjust this based on where OS info is stored
 
       // Collect all restrictions
-      const allRestrictions: any[] = [];
+      const allRestrictions: RuleEntity[] = [];
 
       // 1. Get restrictions by device ID
       if (deviceId) {
